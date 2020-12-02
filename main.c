@@ -16,32 +16,25 @@
 
 void dump(void *buf, int n) {
   char *_buf = buf;
-  while (n-- > 0)
+  int a = n;
+  while (a-- > 0)
     printf("%x ", (*_buf++) & 0xff);
-  printf("\n");
+
+  putc('\n', stdout);
+
+  a = n;
+  _buf = buf;
+  while (a-- > 0)
+    printf("%c", (*_buf++));
+  putc('\n', stdout);
 }
 
-ssize_t send_handshake(int fd, handshake_t *data) {
-  char *buf = (char *)malloc(1024);
-  char *pbuf = buf + 5;
-  varint vint;
+void *create_bytearray(size_t len) {
+  return malloc(len);
+}
 
-  *pbuf++ = data->id; // handshake packet type
-  pbuf = serialize_varint(pbuf, (char *)data->protocol);
-  pbuf = serialize_str(pbuf, data->addr);
-  pbuf = serialize_short(pbuf, data->port);
-  pbuf = serialize_varint(pbuf, data->state);
-
-  int size = pbuf - (buf + 5);
-
-  size_t n = to_varint(size, &vint);
-
-  pbuf = buf + 5 - n; // fill reserved varint for length
-  serialize_varint(pbuf, vint);
-
-  n = write(fd, pbuf, n + size);
-  free(buf);
-  return n;
+void destroy_bytearray(void *ptr) {
+  free(ptr);
 }
 
 int main(int argc, char *argv[]) {
@@ -67,26 +60,24 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
 
-  varint out;
-  to_varint(2222222, &out);
-  handshake_t hand = {.id = 0x00,
-                      .protocol = &out,
-                      .addr = "127.0.0.1",
-                      .port = 25565,
-                      .state = 1};
+  serverinfo_t si = {0};
+  memset(&si, 0, sizeof(si));
+  si.si_conninfo.addr = "127.0.0.1";
+  si.si_conninfo.port = 25565;
+  si.si_conninfo.proto = MC_1_6_2;
+  si.si_conninfo.sockfd = fd;
 
-  ret = send_handshake(fd, &hand);
-  printf("write %d bytes!\n", ret);
+  userinfo_t ui = {
+    .ui_name = "PLAYER",
+  };
 
-  char s[2] = {1, 0};
-  write(fd, s, 2);
-
-  byte buf[1024];
-  ssize_t nr = read(fd, buf, 1024);
   int len;
-  nr = deserialize_verint(buf, &len);
-  printf("size: %d\n", len);
-  dump(buf, len);
+  char buf[256];
+  len = send_handshake(&si, 2);
+  // len = send_slp(&si);
+  // len = send_ping(&si, 0x4142434445464748);
+  len = send_login(&si, &ui);
 
+  read_response(&si, &ui, NULL);
   return 0;
 }
