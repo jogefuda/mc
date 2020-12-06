@@ -1,30 +1,14 @@
 #include "pkt.h"
+#include "../crypto.h"
+#include "../utils.h"
 
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
 
-// utils
-#define vitoh(__v, __n) ((int)vitohl(__v, __n))
-#define vitohs(__v, __n) ((short)vitohl(__v, __n))
-long vitohl(const byte *const buf, size_t *len)
-{
-  long ret = 0;
-  size_t nRead = 0;
-  byte *_buf = (byte *)buf;
-
-  do
-  {
-    ret += (*_buf & 0b01111111) << (7 * nRead++);
-  } while ((*_buf++ & 0b10000000) > 0);
-
-  if (len != NULL)
-    *len = nRead;
-
-  return ret;
-}
-
+// debug
+#include <fcntl.h>
 
 // deserializer
 static ssize_t deserialize_varint(int fd, int32_t *out) {
@@ -34,7 +18,7 @@ static ssize_t deserialize_varint(int fd, int32_t *out) {
   *out = 0;
 
   do {
-    if ((n = read(fd, &tmp, 1)) <= 0)
+    if ((n = read(fd, &tmp, 1)) < 1)
       return n;
     *out |= tmp << (7 * nbytes++);
   } while (tmp & 0b10000000);
@@ -68,23 +52,23 @@ static ssize_t deserialize_str(int fd, char **buf, size_t *n) {
 }
 
 // serializer
-// TODO: change val type to signed int.
-static ssize_t serialize_varint(char *buf, uint32_t val)
+static ssize_t serialize_varint(char *buf, int32_t val)
 {
   char *_buf = buf;
+  uint32_t _val = val;
   char tmp;
   ssize_t n = 0;
 
   do
   {
-    tmp = val & 0b01111111;
-    val >>= 7;
-    if (val != 0)
+    tmp = _val & 0b01111111;
+    _val >>= 7;
+    if (_val != 0)
       tmp |= 0b10000000;
 
     *_buf++ = tmp;
     ++n;
-  } while (val != 0);
+  } while (_val != 0);
 
   return n;
 }
@@ -102,12 +86,11 @@ static ssize_t serialize_str(char *buf, const char *str, const ssize_t n)
   buf += vl;
   ssize_t _n = n;
 
-  for (_n; _n; _n--)
+  for (; _n; _n--)
     *buf++ = *str++;
 
   return vl + n;
 }
-
 
 // read packet
 static ssize_t recv_encrypt_req(struct serverinfo *si) {
@@ -117,9 +100,9 @@ static ssize_t recv_encrypt_req(struct serverinfo *si) {
   // TODO: serverinfo.id is not not relocateable
   // ERROR HANDLE
   size_t len = 20;
-  len = deserialize_str(fd, si->id, &len);
-  deserialize_str(fd, &si->si_encinfo.e_pubkey.b_arr, &si->si_encinfo.e_pubkey.b_len);
-  deserialize_str(fd, &si->si_encinfo.e_verify.b_arr, &si->si_encinfo.e_verify.b_len);
+  len = deserialize_str(fd, &si->id, &len);
+  deserialize_str(fd, &si->si_encinfo.e_pubkey.b_data, &si->si_encinfo.e_pubkey.b_size);
+  deserialize_str(fd, &si->si_encinfo.e_verify.b_data, &si->si_encinfo.e_verify.b_size);
   return 0;
 }
 
@@ -133,7 +116,7 @@ ssize_t read_response(struct serverinfo *si, struct userinfo *ui, void *userdata
   nbytes += deserialize_varint(fd, &len);
   nbytes += deserialize_varint(fd, &type);
 
-  printf("pkgsize: %d, %d\n", len, nbytes);
+  printf("pkgsize: %d, %zd\n", len, nbytes);
   char *buf = malloc(len);
 
   if (state == MS_LOGIN) {
@@ -145,8 +128,7 @@ ssize_t read_response(struct serverinfo *si, struct userinfo *ui, void *userdata
   // nr = read(fd, buf, len);
     };
   }
- 
-
+  return 0;
 }
 
 
@@ -200,9 +182,43 @@ ssize_t send_login(struct serverinfo *si, struct userinfo *ui) {
   write(fd, buf, len);
   write(fd, buf + 5, pkgsize);
   return pkgsize;
-
 }
 
 ssize_t send_encryption(struct serverinfo *si) {
-  // si->si_encinfo.e_presharekey();
+  int fd = si->si_conninfo.sockfd;
+
+  struct bytearray presharekey;
+
+  presharekey.b_data = malloc(16);
+
+  int len = gen_rand_byte(&presharekey, 16);
+
+  if(len < 16) {
+    perror("Fail to generate pre share key. Reason:");
+    return -1;
+  }
+
+  struct bytearray verifytoken = si->si_encinfo.e_verify;
+
+  struct bytearray crypted_presharekey;
+  struct bytearray crypted_verifytoken;
+
+  int nbytes = 0;
+  RSA *rsa = DER_load_pubkey_from_str(&si->si_encinfo.e_pubkey);
+  
+  nbytes += RSA_encrypt_with_pubkey(rsa, &presharekey, &crypted_presharekey);
+  nbytes += RSA_encrypt_with_pubkey(rsa, &verifytoken, &crypted_verifytoken);
+  
+  char *buf = malloc(512);
+  char *pbuf = buf + 5;
+
+  size_t pktsize = 0;
+  pktsize += serialize_varint(pbuf + pktsize, MC_ENCRYPT);
+  pktsize += serialize_str(pbuf + pktsize, crypted_presharekey.b_data, crypted_presharekey.b_size);
+  pktsize += serialize_str(pbuf + pktsize, crypted_verifytoken.b_data, crypted_verifytoken.b_size);
+  len = serialize_varint(buf, pktsize);
+
+  write(fd, buf, len);
+  write(fd, buf + 5, pktsize);
+  return 0;
 }

@@ -2,6 +2,7 @@
 #define __MC_PKT_H
 
 #include "type.h"
+#include "../crypto.h"
 #include <sys/types.h>
 
 /*
@@ -14,11 +15,6 @@ typedef struct conninfo {
     uint16_t port;
     int32_t state;
 } conninfo_t;
-
-typedef struct bytearray {
-    char *b_arr;
-    size_t b_len;
-} bytearray_t;
 
 typedef struct encrypt {
     struct bytearray e_pubkey;
