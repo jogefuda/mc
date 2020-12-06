@@ -5,7 +5,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
-
+#include "crypto.h"
 // #include <arpa/inet.h>
 #include <sys/epoll.h>
 #include <sys/socket.h>
@@ -13,29 +13,7 @@
 #include "version.h"
 #include "net/type.h"
 #include "net/pkt.h"
-
-void dump(void *buf, int n) {
-  char *_buf = buf;
-  int a = n;
-  while (a-- > 0)
-    printf("%x ", (*_buf++) & 0xff);
-
-  putc('\n', stdout);
-
-  a = n;
-  _buf = buf;
-  while (a-- > 0)
-    printf("%c", (*_buf++));
-  putc('\n', stdout);
-}
-
-void *create_bytearray(size_t len) {
-  return malloc(len);
-}
-
-void destroy_bytearray(void *ptr) {
-  free(ptr);
-}
+#include "utils.h"
 
 int main(int argc, char *argv[]) {
 
@@ -43,7 +21,7 @@ int main(int argc, char *argv[]) {
   int ret;
 
   if (fd < 0) {
-    perror("socket()");
+    perror("Fail to create socket.");
     exit(1);
   }
 
@@ -71,13 +49,21 @@ int main(int argc, char *argv[]) {
     .ui_name = "PLAYER",
   };
 
+  openssl_init();
+
   int len;
   char buf[256];
   len = send_handshake(&si, 2);
   // len = send_slp(&si);
   // len = send_ping(&si, 0x4142434445464748);
   len = send_login(&si, &ui);
-
   read_response(&si, &ui, NULL);
+  send_encryption(&si);
+  // read_response(&si, &ui, NULL);
+
+  
+  read(fd, buf, 128);
+  dump(buf, 128);
+  printf("pubkey: %zd\n", si.si_encinfo.e_pubkey.b_size);
   return 0;
 }
