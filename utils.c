@@ -17,11 +17,25 @@ void dump(void *buf, int n) {
   putc('\n', stdout);
 }
 
-void *create_bytearray(size_t len) {
-  return malloc(len);
+int bytearray_increase(struct bytearray *arr, size_t size) {
+  void *newptr = realloc(arr->b_data, arr->b_allocsize + size);
+  if (newptr == NULL) return NULL;
+  arr->b_data = newptr;
+  arr->b_allocsize = arr->b_allocsize + size;
+  return newptr;
 }
 
-void destroy_bytearray(void *ptr) {
+struct bytearray *bytearray_create(size_t len) {
+  struct bytearray *arr = malloc(sizeof(struct bytearray));
+  arr->b_data = malloc(len);
+  arr->b_size = 0;
+  arr->b_allocsize = len;
+  return arr;
+}
+
+void bytearray_destroy(struct bytearray *ptr) {
+  if (!ptr) return;
+  if (ptr->b_data) free(ptr->b_data);
   free(ptr);
 }
 

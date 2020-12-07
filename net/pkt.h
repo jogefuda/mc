@@ -11,7 +11,7 @@
 typedef struct conninfo {
     int sockfd;
     uint32_t proto;
-    char *addr;
+    const char *addr;
     uint16_t port;
     int32_t state;
 } conninfo_t;
@@ -30,6 +30,8 @@ typedef struct serverinfo {
 
 typedef struct userinfo {
     char ui_name[16];
+    char token[24];
+    char uuid[24];
 } userinfo_t;
 
 
