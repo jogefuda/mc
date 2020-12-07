@@ -2,6 +2,7 @@
 #include <zlib.h>
 #include <assert.h>
 #include <stdio.h>
+
 int mc_deflat_pkt(struct bytearray *arr_in, struct bytearray *arr_out)
 {
     int ret, flush;
@@ -19,7 +20,7 @@ int mc_deflat_pkt(struct bytearray *arr_in, struct bytearray *arr_out)
     do
     {
         strm.avail_in = (need > Z_CHUNK)? Z_CHUNK: need;
-        strm.next_in = arr_in->b_data + have;
+        strm.next_in = arr_in->b_data + strm.total_in;
         flush = (need > Z_CHUNK)? Z_NO_FLUSH: Z_FINISH;
         do
         {
