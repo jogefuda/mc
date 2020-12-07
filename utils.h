@@ -6,7 +6,12 @@
 typedef struct bytearray {
     char *b_data;
     size_t b_size;
+    size_t b_allocsize;
 } bytearray_t;
+
+int bytearray_increase(struct bytearray *arr, size_t size);
+struct bytearray *bytearray_create(size_t len);
+void bytearray_destroy(struct bytearray *ptr);
 
 void dump(void *buf, int n);
 /*

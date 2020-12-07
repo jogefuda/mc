@@ -6,15 +6,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
-#include <math.h>
 #include <fcntl.h>
 
 static char *PEM_START = "-----BEGIN PUBLIC KEY-----";
 static char *PEM_END   = "-----END PUBLIC KEY-----";
-
-int base64_encode(gnutls_datum_t *raw, gnutls_datum_t *b64) {
-    return gnutls_base64_encode2(raw, b64);
-}
 
 RSA* PEM_load_pubkey_from_str(const char* publicKeyStr) {
   // A BIO is an I/O abstraction (Byte I/O?)
@@ -42,7 +37,7 @@ RSA *DER_load_pubkey_from_str(struct bytearray *arr) {
     raw.size = arr->b_size;
     gnutls_base64_encode2(&raw, &b64);
 
-    char *outkey = malloc(strlen(PEM_START) + b64.size + strlen(PEM_END));
+    char *outkey = malloc(strlen(PEM_START) + b64.size + strlen(PEM_END) + 1);
     sprintf(outkey, "%s\n%s\n%s", PEM_START, b64.data, PEM_END);
 
     RSA *rsa = PEM_load_pubkey_from_str(outkey);
@@ -54,16 +49,13 @@ RSA *DER_load_pubkey_from_str(struct bytearray *arr) {
 
 int RSA_encrypt_with_pubkey(RSA *rsa, struct bytearray *in, struct bytearray *out) {
     size_t keysize = RSA_size(rsa);
-    size_t len = ceil((double)in->b_size / (double)keysize) * keysize;
-
-    char *buf = malloc(len);
-
-    if (buf == NULL) {
-        perror("malloc error");
-        exit(1);
+    // size_t len = ceil((double)in->b_size / (double)keysize) * keysize;
+    
+    if (out->b_allocsize < keysize 
+        && bytearray_increase(out, keysize - out->b_allocsize) == NULL) {
+        fputs("Fail to malloc", stderr);
+        return 0;
     }
-
-    out->b_data = buf;
     int nbytes = RSA_public_encrypt(in->b_size, (unsigned char *)in->b_data, (unsigned char *)out->b_data, rsa, RSA_PKCS1_PADDING);
     out->b_size = nbytes;
     return nbytes;

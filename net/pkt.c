@@ -131,6 +131,9 @@ ssize_t read_response(struct serverinfo *si, struct userinfo *ui, void *userdata
   return 0;
 }
 
+ssize_t send_packet(struct serverinfo *si, void *data, void *pkt_builder) {
+  // if (compress_enabled && pktsize > pktsize_throushold)
+}
 
 // send packet
 ssize_t send_handshake(struct serverinfo *si, int state)
@@ -218,7 +221,6 @@ ssize_t send_encryption(struct serverinfo *si) {
   write(fd, buf + 5, pktsize);
   return 0;
 }
-
 
 ssize_t send_chat(struct serverinfo *si, const char *str) {
   char buf[280], *pbuf;
