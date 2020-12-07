@@ -19,7 +19,7 @@ typedef struct conninfo {
 typedef struct encrypt {
     struct bytearray e_pubkey;
     struct bytearray e_verify;
-    struct bytearray e_presharekey;
+    struct bytearray e_secret;
 } encrypt_t;
 
 typedef struct serverinfo {
@@ -60,7 +60,7 @@ ssize_t send_handshake(struct serverinfo *si, int state);
 ssize_t send_slp(struct serverinfo *si);
 ssize_t send_ping(struct serverinfo *si, long data);
 ssize_t send_login(struct serverinfo *si, struct userinfo *ui);
-
+ssize_t send_chat(struct serverinfo *si, const char *str);
 ssize_t read_response(struct serverinfo *si, struct userinfo *ui, void *userdata);
 
 
@@ -73,9 +73,10 @@ ssize_t read_response(struct serverinfo *si, struct userinfo *ui, void *userdata
 #define MP_HANDSHAKING 0x00
 #define MP_SLP 0x00
 #define MP_PING 0x01
-
 /* status.2 login */
 #define MP_LOGIN 0x00
+/* status.3 play */
+#define MP_CHAT 0x03
 
 /* client bound */
 #define MP_SLP_RES 0x00

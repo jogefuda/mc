@@ -2,7 +2,7 @@ LIBS = $(shell pkgconf --libs openssl)
 LIBS += $(shell pkgconf --libs gnutls)
 LIBS += -lm
 
-obj = crypto.o utils.o
+obj = crypto.o utils.o minecraft.o
 
 .PHONY: all
 

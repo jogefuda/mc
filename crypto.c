@@ -8,8 +8,6 @@
 #include <unistd.h>
 #include <math.h>
 #include <fcntl.h>
-// #include <sys/stat.h>
-//
 
 static char *PEM_START = "-----BEGIN PUBLIC KEY-----";
 static char *PEM_END   = "-----END PUBLIC KEY-----";
@@ -47,7 +45,6 @@ RSA *DER_load_pubkey_from_str(struct bytearray *arr) {
     char *outkey = malloc(strlen(PEM_START) + b64.size + strlen(PEM_END));
     sprintf(outkey, "%s\n%s\n%s", PEM_START, b64.data, PEM_END);
 
-    printf("%s", outkey);
     RSA *rsa = PEM_load_pubkey_from_str(outkey);
 
     gnutls_free(b64.data);
@@ -80,6 +77,6 @@ int gen_rand_byte(struct bytearray *arr, size_t n) {
     return nbytes;
 }
 
-void openssl_init() {
+void openssl_load_err_str() {
     ERR_load_crypto_strings();
 }

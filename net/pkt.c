@@ -187,38 +187,48 @@ ssize_t send_login(struct serverinfo *si, struct userinfo *ui) {
 ssize_t send_encryption(struct serverinfo *si) {
   int fd = si->si_conninfo.sockfd;
 
-  struct bytearray presharekey;
+  struct bytearray *secret = &si->si_encinfo.e_secret;
+  secret->b_data = malloc(16);
 
-  presharekey.b_data = malloc(16);
-
-  int len = gen_rand_byte(&presharekey, 16);
+  int len = gen_rand_byte(secret, 16);
 
   if(len < 16) {
-    perror("Fail to generate pre share key. Reason:");
+    perror("Fail to generate secret. Reason:");
     return -1;
   }
 
-  struct bytearray verifytoken = si->si_encinfo.e_verify;
-
-  struct bytearray crypted_presharekey;
-  struct bytearray crypted_verifytoken;
+  struct bytearray verifytk = si->si_encinfo.e_verify;
+  struct bytearray crypted_secret;
+  struct bytearray crypted_verifytk;
 
   int nbytes = 0;
   RSA *rsa = DER_load_pubkey_from_str(&si->si_encinfo.e_pubkey);
-  
-  nbytes += RSA_encrypt_with_pubkey(rsa, &presharekey, &crypted_presharekey);
-  nbytes += RSA_encrypt_with_pubkey(rsa, &verifytoken, &crypted_verifytoken);
+  nbytes += RSA_encrypt_with_pubkey(rsa, secret, &crypted_secret);
+  nbytes += RSA_encrypt_with_pubkey(rsa, &verifytk, &crypted_verifytk);
   
   char *buf = malloc(512);
   char *pbuf = buf + 5;
-
   size_t pktsize = 0;
   pktsize += serialize_varint(pbuf + pktsize, MC_ENCRYPT);
-  pktsize += serialize_str(pbuf + pktsize, crypted_presharekey.b_data, crypted_presharekey.b_size);
-  pktsize += serialize_str(pbuf + pktsize, crypted_verifytoken.b_data, crypted_verifytoken.b_size);
+  pktsize += serialize_str(pbuf + pktsize, crypted_secret.b_data, crypted_secret.b_size);
+  pktsize += serialize_str(pbuf + pktsize, crypted_verifytk.b_data, crypted_verifytk.b_size);
   len = serialize_varint(buf, pktsize);
 
   write(fd, buf, len);
   write(fd, buf + 5, pktsize);
   return 0;
+}
+
+
+ssize_t send_chat(struct serverinfo *si, const char *str) {
+  char buf[280], *pbuf;
+  int fd = si->si_conninfo.sockfd;
+  pbuf = buf + 5;
+  size_t pktsize = 0;
+  pktsize += serialize_varint(pbuf + pktsize, MP_CHAT);
+  pktsize += serialize_str(pbuf + pktsize, str, strlen(str));
+ 
+  int len = serialize_varint(buf, pktsize);
+  write(fd, buf, len);
+  write(fd, buf + 5, pktsize);
 }
