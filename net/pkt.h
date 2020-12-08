@@ -17,7 +17,7 @@ typedef struct conninfo {
     const char *addr;
     uint16_t port;
     int32_t state;
-    int32_t compressed;
+    uint32_t thresh;
 } conninfo_t;
 
 typedef struct encrypt {
@@ -39,17 +39,18 @@ typedef struct userinfo {
 } userinfo_t;
 
 enum M_PACKET_CLIENTBOUND {
-  M_PACKET_PONG,
-  M_PACKET_ENCRYPT,
-  M_PACKET_SETCOMPRESS
+  M_PACKET_PONG        = 0x01,
+  M_PACKET_ENCRYPT     = 0x02,
+  M_PACKET_SETCOMPRESS = 0x03
 } ;
 
 enum M_PACKET_SERVERBOUND {
-  M_PACKET_HANDSHAKE   = 0x00,
-  M_PACKET_SERVER_LIST = 0x00,
-  M_PACKET_PING        = 0x01,
-  M_PACKET_LOGIN       = 0x00,
-  M_PACKET_CHAT        = 0x01,
+  M_PACKET_HANDSHAKE     = 0x00,
+  M_PACKET_SERVER_LIST   = 0x00,
+  M_PACKET_PING          = 0x01,
+  M_PACKET_LOGIN         = 0x00,
+  M_PACKET_CHAT          = 0x03,
+  M_PACKET_SET_DIFFICULT = 0x02,
 };
 
 size_t build_handshake(struct buffer *buf, void *data);
@@ -57,6 +58,8 @@ size_t build_slp      (struct buffer *buf, void *data);
 size_t build_ping     (struct buffer *buf, void *data);
 size_t build_login    (struct buffer *buf, void *data);
 size_t build_chat     (struct buffer *buf, void *data);
+size_t build_set_difficult(struct buffer *buf, void *data);
+
 
 ssize_t read_packet(struct serverinfo *si, struct userinfo *ui, void *userdata);
 ssize_t send_packet(enum MC_REQ type, struct serverinfo *si, struct userinfo *ui, void *data);

@@ -9,7 +9,9 @@ enum MC_REQ {
     MC_REQ_HANDSHAKE,
     MC_REQ_PING,
     MC_REQ_SPL,
-    MC_REQ_LOGIN
+    MC_REQ_LOGIN,
+    MC_REQ_CHAT,
+    MC_REQ_SET_DIFFICULT,
 };
 
 enum MC_STATUS {
@@ -21,6 +23,8 @@ enum MC_STATUS {
 struct serverinfo *mc_connect(const char *host, u_int16_t port, u_int32_t proto);
 void mc_login(struct serverinfo *si, struct userinfo *ui);
 void mc_getinfo(struct serverinfo *si, enum MC_REQ info);
+void mc_set_difficult(struct serverinfo *si, int32_t level);
+void mc_chat(struct serverinfo *si, const char *msg);
 void mc_eventloop(struct serverinfo *si);
 void mc_cleanup(void *ptr);
 

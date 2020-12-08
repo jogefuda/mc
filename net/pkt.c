@@ -10,7 +10,7 @@
 // debug
 #include <fcntl.h>
 
-// deserializer
+// deserialize
 static ssize_t fread_varint(int fd, int32_t *out)
 {
     uint8_t tmp;
@@ -22,13 +22,13 @@ static ssize_t fread_varint(int fd, int32_t *out)
     {
         if ((n = read(fd, &tmp, 1)) < 1)
             return n;
-        *out |= tmp << (7 * nbytes++);
+        *out |= (tmp & 0b1111111) << (7 * nbytes++);
     } while (tmp & 0b10000000);
 
     return nbytes;
 }
 
-static ssize_t deserialize_varint(struct buffer *buf, int32_t *out)
+static size_t deserialize_varint(struct buffer *buf, int32_t *out)
 {
     uint8_t tmp;
     size_t nbytes = 0;
@@ -39,7 +39,7 @@ static ssize_t deserialize_varint(struct buffer *buf, int32_t *out)
     do
     {
         tmp = *_buf++;
-        *out |= tmp << (7 * nbytes++);
+        *out |= (tmp & 0b1111111) << (7 * nbytes++);
     } while (tmp & 0b10000000);
 
     buf->b_next = _buf;
@@ -59,12 +59,13 @@ static size_t deserialize_str(struct buffer *buf, struct buffer *out)
     memcpy(out->b_next, buf->b_next, len);
 
     buf->b_next += len;
-    out->b_size = len;
+    out->b_next += len + 1;
+    out->b_size += len;
     *(out->b_data + len + 1) = '\0'; 
     return len;
 }
 
-// serializer
+// serialize
 static size_t serialize_varint(struct buffer *buf, int32_t val)
 {
     inc_buffer_if_not_enough(buf, 5);
@@ -110,27 +111,19 @@ static size_t serialize_str(struct buffer *buf, const char *str, size_t n)
     return vl + n;
 }
 
-// read packet
-static ssize_t recv_encrypt_req(struct serverinfo *si)
-{
-    // int fd = si->si_conninfo.sockfd;
-    // char buf[256];
-
-    // // TODO: serverinfo.id is not not relocateable
-    // // ERROR HANDLE
-    // size_t len = 20;
-    // len = deserialize_str(fd, &si->id, &len);
-    // deserialize_str(fd, &si->si_encinfo.e_pubkey.b_data, &si->si_encinfo.e_pubkey.b_size);
-    // deserialize_str(fd, &si->si_encinfo.e_verify.b_data, &si->si_encinfo.e_verify.b_size);
-    return 0;
+// parse packet
+void parse_setcompress(struct serverinfo *si, struct buffer *buf) {
+    int32_t thresh;
+    deserialize_varint(buf, &thresh);
+    si->si_conninfo.thresh = thresh;
 }
 
 //
 ssize_t read_packet(struct serverinfo *si, struct userinfo *ui, void *userdata)
 {
     int fd = si->si_conninfo.sockfd;
-    int is_compressed = si->si_conninfo.compressed;
-    int stat = si->si_conninfo.state;
+    int is_compressed = si->si_conninfo.thresh > 0;
+    int state = si->si_conninfo.state;
     int ret;
     struct buffer *buf, *out;
     int32_t pktlen, uncompressed_pktlen, pkttype;
@@ -162,6 +155,20 @@ ssize_t read_packet(struct serverinfo *si, struct userinfo *ui, void *userdata)
         out = NULL;
     }
 
+    deserialize_varint(buf, &pkttype);
+
+    if (state == 2) {
+        switch (pkttype) {
+            case M_PACKET_ENCRYPT:
+                break;
+            case M_PACKET_SETCOMPRESS:;
+                parse_setcompress(si, buf);
+                break;
+            default:
+                break;
+                // consume broken packet
+        }
+    }
     // buf->b_next = buf->b_data;
     nbytes += deserialize_varint(buf, &pkttype);
     dump(buf->b_data, buf->b_size);
@@ -173,7 +180,7 @@ ssize_t send_packet(enum MC_REQ type, struct serverinfo *si, struct userinfo *ui
     struct buffer *buf, *zbuf, *header;
     header = new_buffer(10);
     buf = new_buffer(128);
-    int need_compress = si->si_conninfo.compressed;
+    int compress_enabled = si->si_conninfo.thresh > 0;
     int fd = si->si_conninfo.sockfd;
     int state = si->si_conninfo.state;
 
@@ -188,24 +195,38 @@ ssize_t send_packet(enum MC_REQ type, struct serverinfo *si, struct userinfo *ui
             pktsize = build_slp(buf, NULL); break;
         case MC_REQ_LOGIN:
             pktsize = build_login(buf, ui); break;
+        case MC_REQ_CHAT:
+            pktsize = build_chat(buf, data); break;
+        case MC_REQ_SET_DIFFICULT:
+            pktsize = build_set_difficult(buf, data); break;
     }
 
-    if (need_compress) {
-        zbuf = new_buffer(buf->b_allocsize * 0.8);
-        if (zbuf == NULL) {
-            // TODO: error handle
+    if (compress_enabled) {
+        if (buf->b_size > si->si_conninfo.thresh) {
+            zbuf = new_buffer(buf->b_allocsize * 0.8);
+            if (zbuf == NULL) {
+                // TODO: error handle
+            }
+            mc_deflat_pkt(buf, zbuf);
+            del_buffer(buf);
+            buf = zbuf;
+            serialize_varint(header, pktsize + get_varint_len(pktsize));
+            serialize_varint(header, pktsize);
+        } else {
+            serialize_varint(header, pktsize + get_varint_len(0));
+            serialize_varint(header, 0);
         }
-        mc_deflat_pkt(buf, zbuf);
-        del_buffer(buf);
-        buf = zbuf;
-        serialize_varint(header, pktsize + get_varint_len(pktsize));
+    } else {
+        serialize_varint(header, pktsize);
     }
 
-    serialize_varint(header, pktsize);
+    printf("--------  dump begin --------\n");
     dump(header->b_data, header->b_size);
     dump(buf->b_data, buf->b_size);
     write(fd, header->b_data, header->b_size);
     write(fd, buf->b_data, buf->b_size);
+    printf("--------  dump end --------\n");
+
     del_buffer(header);
     del_buffer(buf);
     return 1;
@@ -271,11 +292,19 @@ size_t build_encryption(struct buffer *buf, void *data)
     return pktsize;
 }
 
-size_t build_chat(struct buffer *buf, void *data)
+size_t build_chat (struct buffer *buf, void *data)
 {
     const char *str = (const char *)data;
     size_t pktsize = 0;
     pktsize += serialize_varint(buf, M_PACKET_CHAT);
     pktsize += serialize_str(buf, str, strlen(str));
+    return pktsize;
+}
+
+size_t build_set_difficult(struct buffer *buf, void *data)
+{
+    size_t pktsize = 0;
+    pktsize += serialize_varint(buf, M_PACKET_SET_DIFFICULT);
+    pktsize += serialize_varint(buf, *(int32_t *)data);
     return pktsize;
 }
