@@ -12,6 +12,7 @@
 
 static void _mc_eventloop(struct serverinfo *si)
 {
+    // TODO: this currently not working.
     int epoll_fd = epoll_create(4);
     int sock_fd = si->si_conninfo.sockfd;
 
@@ -19,7 +20,7 @@ static void _mc_eventloop(struct serverinfo *si)
     struct epoll_event events[4];
     for (;;)
     {
-        int n_event = epoll_wait(epoll_fd, events, 1, -1);
+        int n_event = epoll_wait(epoll_fd, events, 4, -1);
         uint32_t e = events[0].events;
         if (e == EPOLLIN)
         {
@@ -107,6 +108,14 @@ void mc_login(struct serverinfo *si, struct userinfo *ui)
     si->si_conninfo.state = MC_STATUS_LOGIN;
     send_packet(MC_REQ_HANDSHAKE, si, NULL, NULL);
     send_packet(MC_REQ_LOGIN, si, ui, NULL);
+}
+
+void mc_chat(struct serverinfo *si, const char *msg) {
+    send_packet(MC_REQ_CHAT, si, NULL, msg);
+}
+
+void mc_set_difficult(struct serverinfo *si, int32_t level) {
+    send_packet(MC_REQ_SET_DIFFICULT, si, NULL, &(int32_t){level});
 }
 
 void mc_cleanup(void *ptr)

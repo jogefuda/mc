@@ -31,7 +31,7 @@ RSA* PEM_load_pubkey_from_str(const char* publicKeyStr) {
   return rsaPubKey ;
 }
 
-RSA *DER_load_pubkey_from_str(struct bytearray *arr) {
+RSA *DER_load_pubkey_from_str(struct buffer *arr) {
     gnutls_datum_t raw, b64;
     raw.data = arr->b_data;
     raw.size = arr->b_size;
@@ -47,21 +47,29 @@ RSA *DER_load_pubkey_from_str(struct bytearray *arr) {
     return rsa;
 }
 
-int RSA_encrypt_with_pubkey(RSA *rsa, struct bytearray *in, struct bytearray *out) {
+int RSA_encrypt_with_pubkey(RSA *rsa, struct buffer *in, struct buffer *out) {
+    int ret;
     size_t keysize = RSA_size(rsa);
-    // size_t len = ceil((double)in->b_size / (double)keysize) * keysize;
-    
-    if (out->b_allocsize < keysize 
-        && inc_bytearray(out, keysize - out->b_allocsize) == NULL) {
+    if (!inc_buffer_if_not_enough(out, keysize)) {
+        // TODO: error handle
         fputs("Fail to malloc", stderr);
         return 0;
     }
-    int nbytes = RSA_public_encrypt(in->b_size, (unsigned char *)in->b_data, (unsigned char *)out->b_data, rsa, RSA_PKCS1_PADDING);
-    out->b_size = nbytes;
-    return nbytes;
+    
+    ret = RSA_public_encrypt(in->b_size, (unsigned char *)in->b_next, (unsigned char *)out->b_next, rsa, RSA_PKCS1_PADDING);
+    if (ret == -1) {
+        out->b_size = 0;
+        return 0;
+        // TODO: error handle
+    }
+
+    out->b_size = keysize;
+    return 1;
 }
 
-int gen_rand_byte(struct bytearray *arr, size_t n) {
+int gen_rand_byte(struct buffer *arr, size_t n) {
+    inc_buffer_if_not_enough(arr, n);
+    // TODO: error handle
     int fd = open("/dev/random", O_RDONLY);
     ssize_t nbytes = read(fd, arr->b_data, n);
     arr->b_size = nbytes;

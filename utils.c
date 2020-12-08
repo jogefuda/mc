@@ -98,22 +98,5 @@ int get_varint_len(int32_t val) {
         _val >>= 7;
         ++n;
     } while (_val > 0);
+    return n;
 }
-/*
-long vitohl(const byte *const buf, size_t *len)
-{
-  long ret = 0;
-  size_t nRead = 0;
-  byte *_buf = (byte *)buf;
-
-  do
-  {
-    ret += (*_buf & 0b01111111) << (7 * nRead++);
-  } while ((*_buf++ & 0b10000000) > 0);
-
-  if (len != NULL)
-    *len = nRead;
-
-  return ret;
-}
-*/
