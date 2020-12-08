@@ -7,6 +7,16 @@
         "ostream": "cpp",
         "sstream": "cpp",
         "streambuf": "cpp",
-        "cstdlib": "c"
+        "cstdlib": "c",
+        "random": "c",
+        "array": "c",
+        "chrono": "c",
+        "functional": "c",
+        "istream": "c",
+        "ratio": "c",
+        "tuple": "c",
+        "type_traits": "c",
+        "utility": "c",
+        "variant": "c"
     }
 }

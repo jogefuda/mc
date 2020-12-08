@@ -52,7 +52,7 @@ int RSA_encrypt_with_pubkey(RSA *rsa, struct bytearray *in, struct bytearray *ou
     // size_t len = ceil((double)in->b_size / (double)keysize) * keysize;
     
     if (out->b_allocsize < keysize 
-        && bytearray_increase(out, keysize - out->b_allocsize) == NULL) {
+        && inc_bytearray(out, keysize - out->b_allocsize) == NULL) {
         fputs("Fail to malloc", stderr);
         return 0;
     }

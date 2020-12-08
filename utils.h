@@ -4,14 +4,28 @@
 #include <sys/types.h>
 
 typedef struct bytearray {
-    char *b_data;
     size_t b_size;
     size_t b_allocsize;
+    char *b_data;
 } bytearray_t;
 
-int bytearray_increase(struct bytearray *arr, size_t size);
-struct bytearray *bytearray_create(size_t len);
-void bytearray_destroy(struct bytearray *ptr);
+typedef struct buffer {
+    size_t b_size;
+    size_t b_allocsize;
+    char *b_data;
+    char *b_next;
+} buffer_t;
+
+void *inc_bytearray(struct bytearray *arr, size_t size);
+struct bytearray *new_bytearray(size_t len);
+void del_bytearray(struct bytearray *ptr);
+
+int inc_buffer_if_not_enough(struct buffer *arr, size_t size);
+void *inc_buffer(struct buffer *arr, size_t size);
+struct buffer *new_buffer(size_t len);
+void del_buffer(struct buffer *ptr);
+
+int get_varint_len(int32_t val);
 
 void dump(void *buf, int n);
 /*
