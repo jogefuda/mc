@@ -1,9 +1,12 @@
 #ifndef __MC_PKT_H
 #define __MC_PKT_H
 
+#include "../minecraft.h"
 #include "type.h"
 #include "../crypto.h"
 #include <sys/types.h>
+
+enum MC_REQ;
 
 /*
 // packet struct
@@ -14,6 +17,7 @@ typedef struct conninfo {
     const char *addr;
     uint16_t port;
     int32_t state;
+    int32_t compressed;
 } conninfo_t;
 
 typedef struct encrypt {
@@ -30,58 +34,31 @@ typedef struct serverinfo {
 
 typedef struct userinfo {
     char ui_name[16];
-    char token[24];
-    char uuid[24];
+    char ui_token[24];
+    char ui_uuid[24];
 } userinfo_t;
 
+enum M_PACKET_CLIENTBOUND {
+  M_PACKET_PONG,
+  M_PACKET_ENCRYPT,
+  M_PACKET_SETCOMPRESS
+} ;
 
-////////////////////
-// handshaking structure
-////////////////////
-/* Get server information include Name, icon, max player, current player */
-typedef struct slp {
-  char data[1];
-} slp_t;
+enum M_PACKET_SERVERBOUND {
+  M_PACKET_HANDSHAKE   = 0x00,
+  M_PACKET_SERVER_LIST = 0x00,
+  M_PACKET_PING        = 0x01,
+  M_PACKET_LOGIN       = 0x00,
+  M_PACKET_CHAT        = 0x01,
+};
 
-/* server return same as data */
-typedef struct ping {
-  uint64_t data;
-} ping_t;
+size_t build_handshake(struct buffer *buf, void *data);
+size_t build_slp      (struct buffer *buf, void *data);
+size_t build_ping     (struct buffer *buf, void *data);
+size_t build_login    (struct buffer *buf, void *data);
+size_t build_chat     (struct buffer *buf, void *data);
 
-/* handshake with server 
-if state == 1 handshaking state
-if state == 2 long state
-*/
-typedef struct handshake {
-  char *addr;
-  uint16_t port;
-  uint32_t state;
-} handshake_t;
+ssize_t read_packet(struct serverinfo *si, struct userinfo *ui, void *userdata);
+ssize_t send_packet(enum MC_REQ type, struct serverinfo *si, struct userinfo *ui, void *data);
 
-ssize_t send_handshake(struct serverinfo *si, int state);
-ssize_t send_slp(struct serverinfo *si);
-ssize_t send_ping(struct serverinfo *si, long data);
-ssize_t send_login(struct serverinfo *si, struct userinfo *ui);
-ssize_t send_chat(struct serverinfo *si, const char *str);
-ssize_t read_response(struct serverinfo *si, struct userinfo *ui, void *userdata);
-
-
-/* */
-#define MS_HANDSHAKING 0x01
-#define MS_LOGIN 0x02
-
-/* server bound */
-/* status.1 handshaking */
-#define MP_HANDSHAKING 0x00
-#define MP_SLP 0x00
-#define MP_PING 0x01
-/* status.2 login */
-#define MP_LOGIN 0x00
-/* status.3 play */
-#define MP_CHAT 0x03
-
-/* client bound */
-#define MP_SLP_RES 0x00
-#define MP_PONG_RES 0x01
-#define MP_ENCRYPT_REQ 0x01
 #endif // __MC_PKT_H
