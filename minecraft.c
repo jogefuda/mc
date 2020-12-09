@@ -89,7 +89,7 @@ void mc_getinfo(struct serverinfo *si, enum MC_REQ info) {
     switch (info)
     {
         case MC_REQ_PING:;
-            // TODO: change this to real time
+            // TODO: change this to unix time
             uint64_t time = 0x12345678;
             send_packet(MC_REQ_PING, si, NULL, &time);
             break;
@@ -111,6 +111,12 @@ void mc_chat(struct serverinfo *si, const char *msg) {
 
 void mc_set_difficult(struct serverinfo *si, int32_t level) {
     send_packet(MC_REQ_SET_DIFFICULT, si, NULL, &(int32_t){level});
+}
+
+void mc_init_decrypter(struct serverinfo *si) {
+    char *iv = si->si_encinfo->e_secret;
+    si->si_encinfo->e_encctx = aes_cipher_init(iv, iv, 0);
+    si->si_encinfo->e_decctx = aes_cipher_init(iv, iv, 1);
 }
 
 void mc_cleanup(void *ptr) {

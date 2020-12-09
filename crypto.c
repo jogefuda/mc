@@ -41,7 +41,6 @@ RSA *DER_load_pubkey_from_str(struct buffer *arr) {
     sprintf(outkey, "%s\n%s\n%s", PEM_START, b64.data, PEM_END);
 
     RSA *rsa = PEM_load_pubkey_from_str(outkey);
-
     gnutls_free(b64.data);
     free(outkey);
     return rsa;
@@ -56,7 +55,7 @@ int RSA_encrypt_with_pubkey(RSA *rsa, struct buffer *in, struct buffer *out) {
         return 0;
     }
 
-    ret = RSA_public_encrypt(in->b_size, (unsigned char *)in->b_next, (unsigned char *)out->b_next, rsa, RSA_PKCS1_PADDING);
+    ret = RSA_public_encrypt(in->b_size, (unsigned char *)in->b_data, (unsigned char *)out->b_next, rsa, RSA_PKCS1_PADDING);
     out->b_size += keysize;
 
     if (ret == -1) {
@@ -72,13 +71,53 @@ int RSA_encrypt_with_pubkey(RSA *rsa, struct buffer *in, struct buffer *out) {
 int gen_rand_byte(struct buffer *arr, size_t n) {
     inc_buffer_if_not_enough(arr, n);
     // TODO: error handle
-    int fd = open("/dev/random", O_RDONLY);
-    ssize_t nbytes = read(fd, arr->b_data, n);
-    arr->b_size = nbytes;
-    close(fd);
-    return nbytes;
+
+    for (size_t i = 0; i < n; i++)
+    {
+        arr->b_data[i] = 0;
+    }
+    arr->b_size = 16;
+    return 16;
+
+    // TODO: use fix iv and K for debug purpose
+    // int fd = open("/dev/random", O_RDONLY);
+    // ssize_t nbytes = read(fd, arr->b_data, n);
+    // arr->b_size += nbytes;
+    // arr->b_next += nbytes;
+    // close(fd);
+    // return nbytes;
 }
 
 void openssl_load_err_str() {
     ERR_load_crypto_strings();
+}
+
+EVP_CIPHER_CTX *aes_cipher_init(const char *key, const char *iv, int enc) {
+    int ret;
+    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+    // ret = EVP_CipherInit(ctx, EVP_aes_128_cfb8(), key, iv, enc);
+    ret = EVP_EncryptInit_ex(ctx, EVP_aes_128_cfb8(), NULL, key, iv);
+
+    if (!ret) {
+        printf("%s\n", ERR_error_string(ERR_get_error(), 0));
+        return NULL;
+    }
+    return ctx;
+}
+
+void aes_cipher_update(EVP_CIPHER_CTX *ctx, struct buffer *in, struct buffer *out) {
+    int inl, outl;
+    char s[100] = { 0 };
+    // EVP_CipherUpdate(ctx, out->b_next, &outl, in->b_next, in->b_size);
+    int a = EVP_EncryptUpdate(ctx, s, &outl, "abcd", 4);
+    if (!a) {
+        printf("%s\n", ERR_error_string(ERR_get_error(), 0));
+    }
+    printf("%d, %d\n", a, outl);
+    printf("%X %X\n", s[0] & 0xff, s[1] & 0xff);
+}
+
+void aes_clean(EVP_CIPHER_CTX *ctx) {
+    // EVP_CIPHER_CTX_clean(ctx);
+    EVP_CIPHER_CTX_free(ctx);
 }
