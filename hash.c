@@ -1,4 +1,5 @@
 #include "hash.h"
+#include <gmp.h>
 
 EVP_MD_CTX *mc_hash_init(EVP_MD_CTX *ctx) {
     // TODO: ctx error handler
@@ -17,22 +18,40 @@ int mc_hash_update(EVP_MD_CTX *ctx, const char *data, size_t len) {
     return EVP_DigestUpdate(ctx, data, len);
 }
 
-int mc_hash_final(EVP_MD_CTX *ctx, char *buf, unsigned int *len) {
+int mc_hash_final(EVP_MD_CTX *ctx, char *out_buf, unsigned int *len) {
     unsigned char tmp[SHA_DIGEST_LENGTH];
+    unsigned char str_tmp[SHA_DIGEST_LENGTH * 2 + 1];
     unsigned int tmp_len;
-    if (!EVP_DigestFinal(ctx, tmp, &tmp_len)) return 0;
+    if (!EVP_DigestFinal(ctx, tmp, &tmp_len))
+        return 0;
 
-    if (tmp[0] & 0b10000000) {
-        *buf++ = '-';
-        for (size_t i = 0; i < tmp_len; i++)
-            sprintf(buf+i, "%x", ~tmp[i]);
-        // TODO: this may cause incorrect hash
-        ++buf[tmp_len - 1];
-    } else {
-        memcpy(buf, tmp, tmp_len);
+    for (size_t i = 0; i < SHA_DIGEST_LENGTH; i++)
+        sprintf(str_tmp + i * 2, "%02x", *(tmp + i) & 0xff);
+
+    mpz_t bn, rbn;
+    mpz_init(bn);
+    int a = mpz_set_str(bn, str_tmp, 16);
+    if (mpz_tstbit(bn, 159)) {
+        for (size_t i = 0; i < 20 * 8; i++) {
+            if (mpz_tstbit(bn, i))
+                mpz_clrbit(bn, i);
+            else
+                mpz_setbit(bn, i);
+        }
+
+        mpz_init(rbn);
+        mpz_add_ui(rbn, bn, 1);
+        mpz_get_str(out_buf + 1, 16, rbn);
+        mpz_clear(rbn);
+        out_buf[0] = '-';
+        printf("ok");
+    }
+    else {
+        mpz_get_str(out_buf, 16, bn);
+        mpz_clear(bn);
     }
 
-    *len = tmp_len;
+
     mc_hash_init(ctx);
     return 1;
 }
@@ -40,4 +59,6 @@ int mc_hash_final(EVP_MD_CTX *ctx, char *buf, unsigned int *len) {
 void mc_hash_clean(EVP_MD_CTX *ctx) {
     // EVP_MD_CTX_cleanup(ctx);
     EVP_MD_CTX_destroy(ctx);
+
+
 }
