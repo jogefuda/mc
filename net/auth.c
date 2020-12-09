@@ -63,8 +63,15 @@ void mc_auth(serverinfo_t *si, userinfo_t *ui) {
     char *header[] = {
         "Content-Type: application/json", 0
     };
+
     char *token = getenv("MC_TOKEN");
     char *uuid = getenv("MC_UUID");
+
+    if (!token || !uuid) {
+        // TODO: error handle and firendly error message
+        return 0;
+    }
+
     char serverid[SHA_DIGEST_LENGTH * 2 + 2];
     get_serverid(si, serverid, SHA_DIGEST_LENGTH * 2 + 2);
 
