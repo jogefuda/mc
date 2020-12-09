@@ -14,11 +14,11 @@ static char *auth_fmt = " \
   } \
 ";
 
-static ssize_t get_serverid(serverinfo_t *si, char *buf, unsigned int *len) {
+static ssize_t get_serverid(struct serverinfo *si, char *buf, unsigned int *len) {
     EVP_MD_CTX *ctx = mc_hash_init(NULL);
-    mc_hash_update(ctx, si->id, 20);
-    mc_hash_update(ctx, si->si_encinfo.e_secret.b_data, 16);
-    mc_hash_update(ctx, si->si_encinfo.e_pubkey.b_data, 162);
+    mc_hash_update(ctx, si->si_encinfo->e_id, 20);
+    mc_hash_update(ctx, si->si_encinfo->e_secret->b_data, 16);
+    mc_hash_update(ctx, si->si_encinfo->e_pubkey->b_data, 162);
     mc_hash_final(ctx, buf, len);
     mc_hash_clean(ctx);
     return len;
@@ -60,16 +60,20 @@ void mc_auth(serverinfo_t *si, userinfo_t *ui) {
     if (!curl)
         goto err;
 
-    char *token = "1234";
-    char *uuid = "83e466a10d6b489db7200e2a73588fc8";
-    char serverid[SHA_DIGEST_LENGTH + 1];
-    get_serverid(si, serverid, SHA_DIGEST_LENGTH + 1);
+    char *header[] = {
+        "Content-Type: application/json", 0
+    };
+    char *token = getenv("MC_TOKEN");
+    char *uuid = getenv("MC_UUID");
+    char serverid[SHA_DIGEST_LENGTH * 2 + 2];
+    get_serverid(si, serverid, SHA_DIGEST_LENGTH * 2 + 2);
 
-    char post_data[256];
+    char *post_data = malloc(strlen(auth_fmt) + strlen(token) + strlen(uuid) + strlen(serverid));
     sprintf(post_data, auth_fmt, token, uuid, serverid);
     printf("%s\n", post_data);
     curl_easy_setopt(curl, CURLOPT_URL, auth_url);
     curl_easy_setopt(curl, CURLOPT_POST, &(int){1});
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, header);
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, post_data);
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "Minecraft");
 
@@ -82,10 +86,12 @@ void mc_auth(serverinfo_t *si, userinfo_t *ui) {
     if (status != 204)
         goto err;
 
+    free(post_data);
     curl_free(curl);
     return 1;
 
     err:;
+    free(post_data);
     curl_free(curl);
     return 0;
 }

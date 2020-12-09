@@ -2,6 +2,7 @@
 #include "../crypto.h"
 #include "../utils.h"
 #include "../compress.h"
+#include "auth.h"
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -218,7 +219,7 @@ ssize_t send_packet(enum MC_REQ type, struct serverinfo *si, struct userinfo *ui
         case MC_REQ_LOGIN:
             pktsize = build_login(buf, ui); break;
         case MC_REQ_ENCRYPTRES:
-            pktsize = build_encryption(buf, si); break;
+            pktsize = build_encryption(buf, si); mc_auth(si, NULL); break;
         case MC_REQ_CHAT:
             pktsize = build_chat(buf, data); break;
         case MC_REQ_SET_DIFFICULT:
