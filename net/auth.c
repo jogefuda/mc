@@ -56,6 +56,9 @@ ssize_t get_uuid(char *name) {
 }
 
 void mc_auth(serverinfo_t *si, userinfo_t *ui) {
+    // TODO: solve encrypt problem first
+    return 1;
+
     CURL *curl = curl_easy_init();
     if (!curl)
         goto err;

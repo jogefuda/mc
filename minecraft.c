@@ -10,8 +10,7 @@
 #include <unistd.h>
 #include <pthread.h>
 
-static void _mc_eventloop(struct serverinfo *si)
-{
+static void _mc_eventloop(struct serverinfo *si) {
     // TODO: this currently not working.
     int epoll_fd = epoll_create(4);
     int sock_fd = si->si_conninfo.sockfd;
@@ -34,8 +33,7 @@ static void _mc_eventloop(struct serverinfo *si)
     close(epoll_fd);
 }
 
-struct serverinfo *mc_connect(const char *host, uint16_t port, uint32_t proto)
-{
+struct serverinfo *mc_connect(const char *host, uint16_t port, uint32_t proto) {
     int fd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (fd < 0)
@@ -79,32 +77,29 @@ struct serverinfo *mc_connect(const char *host, uint16_t port, uint32_t proto)
     return si;
 }
 
-void mc_eventloop(struct serverinfo *si)
-{
+void mc_eventloop(struct serverinfo *si) {
     pthread_t t;
     pthread_create(&t, NULL, _mc_eventloop, si);
 }
 
-void mc_getinfo(struct serverinfo *si, enum MC_REQ info)
-{
+void mc_getinfo(struct serverinfo *si, enum MC_REQ info) {
     si->si_conninfo.state = MC_STATUS_HANDSHAKE;
     send_packet(MC_REQ_HANDSHAKE, si, NULL, NULL);
 
     switch (info)
     {
-    case MC_REQ_PING:;
-        // TODO: change this to real time
-        uint64_t time = 0x12345678;
-        send_packet(MC_REQ_PING, si, NULL, &time);
-        break;
-    case MC_REQ_SPL:;
-        send_packet(MC_REQ_SPL, si, NULL, NULL);
-        break;
+        case MC_REQ_PING:;
+            // TODO: change this to real time
+            uint64_t time = 0x12345678;
+            send_packet(MC_REQ_PING, si, NULL, &time);
+            break;
+        case MC_REQ_SPL:;
+            send_packet(MC_REQ_SPL, si, NULL, NULL);
+            break;
     };
 }
 
-void mc_login(struct serverinfo *si, struct userinfo *ui)
-{
+void mc_login(struct serverinfo *si, struct userinfo *ui) {
     si->si_conninfo.state = MC_STATUS_LOGIN;
     send_packet(MC_REQ_HANDSHAKE, si, NULL, NULL);
     send_packet(MC_REQ_LOGIN, si, ui, NULL);
@@ -118,7 +113,7 @@ void mc_set_difficult(struct serverinfo *si, int32_t level) {
     send_packet(MC_REQ_SET_DIFFICULT, si, NULL, &(int32_t){level});
 }
 
-void mc_cleanup(void *ptr)
-{
+void mc_cleanup(void *ptr) {
+    // NOTE: serverinfo->e_encinfo is not free yet!
     free(ptr);
 }
