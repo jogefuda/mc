@@ -133,6 +133,7 @@ void parse_encryptreq(struct serverinfo *si, struct buffer *buf) {
     deserialize_str(buf, si->si_encinfo->e_id);
     deserialize_str(buf, si->si_encinfo->e_pubkey);
     deserialize_str(buf, si->si_encinfo->e_verify);
+
     send_packet(MC_REQ_ENCRYPTRES, si, NULL, NULL);
 }
 
@@ -219,7 +220,12 @@ ssize_t send_packet(enum MC_REQ type, struct serverinfo *si, struct userinfo *ui
         case MC_REQ_LOGIN:
             pktsize = build_login(buf, ui); break;
         case MC_REQ_ENCRYPTRES:
-            pktsize = build_encryption(buf, si); mc_auth(si, NULL); break;
+            pktsize = build_encryption(buf, si);
+
+            // TODO: change to event based.
+            mc_auth(si, NULL);
+            mc_init_decrypter(si);
+            break;
         case MC_REQ_CHAT:
             pktsize = build_chat(buf, data); break;
         case MC_REQ_SET_DIFFICULT:
@@ -295,6 +301,9 @@ size_t build_encryption(struct buffer *buf, void *data) {
     struct serverinfo *si = (struct serverinfo *)data;
     struct buffer *share_secret = si->si_encinfo->e_secret;
     struct buffer *verify_token = si->si_encinfo->e_verify;
+
+    share_secret->b_next = share_secret->b_data;
+    verify_token->b_next = verify_token->b_data;
 
     int ret;
     // TODO: error handle

@@ -44,13 +44,11 @@ int mc_hash_final(EVP_MD_CTX *ctx, char *out_buf, unsigned int *len) {
         mpz_get_str(out_buf + 1, 16, rbn);
         mpz_clear(rbn);
         out_buf[0] = '-';
-        printf("ok");
     }
     else {
         mpz_get_str(out_buf, 16, bn);
         mpz_clear(bn);
     }
-
 
     mc_hash_init(ctx);
     return 1;
@@ -59,6 +57,4 @@ int mc_hash_final(EVP_MD_CTX *ctx, char *out_buf, unsigned int *len) {
 void mc_hash_clean(EVP_MD_CTX *ctx) {
     // EVP_MD_CTX_cleanup(ctx);
     EVP_MD_CTX_destroy(ctx);
-
-
 }

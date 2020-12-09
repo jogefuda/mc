@@ -11,26 +11,7 @@ enum MC_REQ;
 /*
 // packet struct
 */
-typedef struct conninfo {
-    int sockfd;
-    uint32_t proto;
-    const char *addr;
-    uint16_t port;
-    int32_t state;
-    uint32_t thresh;
-} conninfo_t;
 
-typedef struct encrypt {
-    struct buffer *e_id;
-    struct buffer *e_pubkey;
-    struct buffer *e_verify;
-    struct buffer *e_secret;
-} encrypt_t;
-
-typedef struct serverinfo {
-    struct conninfo si_conninfo;
-    struct encrypt *si_encinfo;
-} serverinfo_t;
 
 typedef struct userinfo {
     char ui_name[16];
