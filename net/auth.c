@@ -14,8 +14,7 @@ static char *auth_fmt = " \
   } \
 ";
 
-static ssize_t get_serverid(serverinfo_t *si, char *buf, unsigned int *len)
-{
+static ssize_t get_serverid(serverinfo_t *si, char *buf, unsigned int *len) {
     EVP_MD_CTX *ctx = mc_hash_init(NULL);
     mc_hash_update(ctx, si->id, 20);
     mc_hash_update(ctx, si->si_encinfo.e_secret.b_data, 16);
@@ -25,8 +24,7 @@ static ssize_t get_serverid(serverinfo_t *si, char *buf, unsigned int *len)
     return len;
 }
 
-ssize_t get_uuid(char *name)
-{
+ssize_t get_uuid(char *name) {
     int maxlen = strlen(uuid_url_fmt) + 16;
     char url[maxlen + 1];
     snprintf(url, maxlen, uuid_url_fmt, name);
@@ -52,14 +50,12 @@ ssize_t get_uuid(char *name)
     curl_free(curl);
     return 1;
 
-err:;
+    err:;
     curl_free(curl);
     return 0;
-
 }
 
-void mc_auth(serverinfo_t *si, userinfo_t *ui)
-{
+void mc_auth(serverinfo_t *si, userinfo_t *ui) {
     CURL *curl = curl_easy_init();
     if (!curl)
         goto err;
@@ -89,7 +85,7 @@ void mc_auth(serverinfo_t *si, userinfo_t *ui)
     curl_free(curl);
     return 1;
 
-err:;
+    err:;
     curl_free(curl);
     return 0;
 }

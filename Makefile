@@ -1,23 +1,18 @@
-LIBS = $(shell pkgconf --libs openssl)
-LIBS += $(shell pkgconf --libs gnutls)
-LIBS += -lm -pthread -lz
+LIBS = -lm -pthread -lz -lgnutls -lssl -lcrypto -lcurl -lgmp
+OBJ = crypto.o utils.o minecraft.o compress.o hash.o net/pkt.o net/auth.o 
 
-obj = crypto.o utils.o minecraft.o compress.o pkt.o
-
-.PHONY: all
+.PHONY: all clean run
 
 all: a.out
 
 run: a.out
 	-./a.out
 
-a.out: main.c $(obj)
-	gcc -g main.c $(obj) $(LIBS)
-
-pkt.o: net/pkt.c net/pkt.h
-	gcc -g -c $< -o $@ $(LIBS)
+a.out: main.c $(OBJ)
+	$(CC) -g $< $(OBJ) $(LIBS)
 
 %.o: %.c %.h
-	gcc -g -c $< -o $@ $(LIBS)
+	$(CC) -g -c $< -o $@ $(LIBS)
 
-
+clean:
+	@$(RM) ./*.o ./*.txt a.out

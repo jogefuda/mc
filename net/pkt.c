@@ -11,8 +11,7 @@
 #include <fcntl.h>
 
 // deserialize
-static ssize_t fread_varint(int fd, int32_t *out)
-{
+static ssize_t fread_varint(int fd, int32_t *out) {
     uint8_t tmp;
     size_t nbytes = 0;
     ssize_t n;
@@ -28,8 +27,7 @@ static ssize_t fread_varint(int fd, int32_t *out)
     return nbytes;
 }
 
-static size_t deserialize_varint(struct buffer *buf, int32_t *out)
-{
+static size_t deserialize_varint(struct buffer *buf, int32_t *out) {
     uint8_t tmp;
     size_t nbytes = 0;
     ssize_t n;
@@ -46,8 +44,7 @@ static size_t deserialize_varint(struct buffer *buf, int32_t *out)
     return nbytes;
 }
 
-static size_t deserialize_str(struct buffer *buf, struct buffer *out)
-{
+static size_t deserialize_str(struct buffer *buf, struct buffer *out) {
     int32_t len;
 
     deserialize_varint(buf, &len);
@@ -61,13 +58,12 @@ static size_t deserialize_str(struct buffer *buf, struct buffer *out)
     buf->b_next += len;
     out->b_next += len + 1;
     out->b_size += len;
-    *(out->b_data + len + 1) = '\0'; 
+    *(out->b_data + len + 1) = '\0';
     return len;
 }
 
 // serialize
-static size_t serialize_varint(struct buffer *buf, int32_t val)
-{
+static size_t serialize_varint(struct buffer *buf, int32_t val) {
     inc_buffer_if_not_enough(buf, 5);
     char *_buf = buf->b_next;
     char tmp;
@@ -89,8 +85,7 @@ static size_t serialize_varint(struct buffer *buf, int32_t val)
     return n;
 }
 
-static size_t serialize_short(struct buffer *buf, short val)
-{
+static size_t serialize_short(struct buffer *buf, short val) {
     inc_buffer_if_not_enough(buf, 2);
     char *_buf = buf->b_next;
     _buf[0] = (val >> 8) & 0xff;
@@ -100,8 +95,7 @@ static size_t serialize_short(struct buffer *buf, short val)
     return sizeof(short);
 }
 
-static size_t serialize_str(struct buffer *buf, const char *str, size_t n)
-{
+static size_t serialize_str(struct buffer *buf, const char *str, size_t n) {
     inc_buffer_if_not_enough(buf, 5 + n);
     char *_buf = buf->b_next;
     size_t vl = serialize_varint(buf, n);
@@ -112,15 +106,37 @@ static size_t serialize_str(struct buffer *buf, const char *str, size_t n)
 }
 
 // parse packet
-void parse_setcompress(struct serverinfo *si, struct buffer *buf) {
+void parse_setcompression(struct serverinfo *si, struct buffer *buf) {
     int32_t thresh;
     deserialize_varint(buf, &thresh);
     si->si_conninfo.thresh = thresh;
 }
 
+void parse_loginsuccess(struct serverinfo *si, struct buffer *buf) {
+    si->si_conninfo.state = MC_STATUS_PLAY;
+}
+
+void parse_encryptreq(struct serverinfo *si, struct buffer *buf) {
+    si->si_encinfo = new_buffer(sizeof(struct encrypt));
+    if (!si->si_encinfo) {
+        // TODO: error handle
+    }
+
+    si->si_encinfo->e_id = new_buffer(10);
+    si->si_encinfo->e_pubkey = new_buffer(128);
+    si->si_encinfo->e_verify = new_buffer(128);
+    if (!si->si_encinfo->e_id || !si->si_encinfo->e_pubkey || !si->si_encinfo->e_verify) {
+        // TODO: error handle
+    }
+
+    deserialize_str(buf, si->si_encinfo->e_id);
+    deserialize_str(buf, si->si_encinfo->e_pubkey);
+    deserialize_str(buf, si->si_encinfo->e_verify);
+    send_packet(MC_REQ_ENCRYPTRES, si, NULL, NULL);
+}
+
 //
-ssize_t read_packet(struct serverinfo *si, struct userinfo *ui, void *userdata)
-{
+ssize_t read_packet(struct serverinfo *si, struct userinfo *ui, void *userdata) {
     int fd = si->si_conninfo.sockfd;
     int is_compressed = si->si_conninfo.thresh > 0;
     int state = si->si_conninfo.state;
@@ -138,8 +154,8 @@ ssize_t read_packet(struct serverinfo *si, struct userinfo *ui, void *userdata)
     nbytes = 0;
     if (is_compressed)
         nbytes += fread_varint(fd, &uncompressed_pktlen);
-    
-    remain_pktbytes = (is_compressed)? pktlen - nbytes: pktlen;
+
+    remain_pktbytes = (is_compressed) ? pktlen - nbytes : pktlen;
 
     if ((ret = read(fd, buf->b_next, remain_pktbytes)) < 1) {
         // TODO: error handle
@@ -159,11 +175,16 @@ ssize_t read_packet(struct serverinfo *si, struct userinfo *ui, void *userdata)
 
     if (state == 2) {
         switch (pkttype) {
-            case M_PACKET_ENCRYPT:
+            case M_PACKET_LOGINSUCCESS:
+                parse_loginsuccess(si, buf);
                 break;
-            case M_PACKET_SETCOMPRESS:;
-                parse_setcompress(si, buf);
+            case M_PACKET_ENCRYPTREQ:
+                parse_encryptreq(si, buf);
                 break;
+            case M_PACKET_SETCOMPRESSION:
+                parse_setcompression(si, buf);
+                break;
+
             default:
                 break;
                 // consume broken packet
@@ -173,6 +194,8 @@ ssize_t read_packet(struct serverinfo *si, struct userinfo *ui, void *userdata)
     nbytes += deserialize_varint(buf, &pkttype);
     dump(buf->b_data, buf->b_size);
     printf("pkgsize: %d, %d\n", pktlen, pkttype);
+
+    del_buffer(buf);
     return 0;
 }
 
@@ -185,8 +208,7 @@ ssize_t send_packet(enum MC_REQ type, struct serverinfo *si, struct userinfo *ui
     int state = si->si_conninfo.state;
 
     size_t pktsize;
-    switch (type)
-    {
+    switch (type) {
         case MC_REQ_HANDSHAKE:
             pktsize = build_handshake(buf, si); break;
         case MC_REQ_PING:
@@ -195,6 +217,8 @@ ssize_t send_packet(enum MC_REQ type, struct serverinfo *si, struct userinfo *ui
             pktsize = build_slp(buf, NULL); break;
         case MC_REQ_LOGIN:
             pktsize = build_login(buf, ui); break;
+        case MC_REQ_ENCRYPTRES:
+            pktsize = build_encryption(buf, si); break;
         case MC_REQ_CHAT:
             pktsize = build_chat(buf, data); break;
         case MC_REQ_SET_DIFFICULT:
@@ -212,11 +236,13 @@ ssize_t send_packet(enum MC_REQ type, struct serverinfo *si, struct userinfo *ui
             buf = zbuf;
             serialize_varint(header, pktsize + get_varint_len(pktsize));
             serialize_varint(header, pktsize);
-        } else {
+        }
+        else {
             serialize_varint(header, pktsize + get_varint_len(0));
             serialize_varint(header, 0);
         }
-    } else {
+    }
+    else {
         serialize_varint(header, pktsize);
     }
 
@@ -232,8 +258,7 @@ ssize_t send_packet(enum MC_REQ type, struct serverinfo *si, struct userinfo *ui
     return 1;
 }
 
-size_t build_handshake(struct buffer *buf, void *data)
-{
+size_t build_handshake(struct buffer *buf, void *data) {
     struct serverinfo *si = (struct serverinfo *)data;
     size_t pkgsize = 0;
     pkgsize += serialize_varint(buf, M_PACKET_HANDSHAKE);
@@ -244,23 +269,20 @@ size_t build_handshake(struct buffer *buf, void *data)
     return pkgsize;
 }
 
-size_t build_slp(struct buffer *buf, void *data)
-{
+size_t build_slp(struct buffer *buf, void *data) {
     size_t pktsize = 0;
-    pktsize += serialize_varint(buf, M_PACKET_SERVER_LIST);
+    pktsize += serialize_varint(buf, M_PACKET_SLPREQ);
     return pktsize;
 }
 
-size_t build_ping(struct buffer *buf, void *data)
-{
+size_t build_ping(struct buffer *buf, void *data) {
     size_t pktsize = 0;
     pktsize += serialize_varint(buf, M_PACKET_PING);
     pktsize += serialize_varint(buf, *(long *)data);
     return pktsize;
 }
 
-size_t build_login(struct buffer *buf, void *data)
-{
+size_t build_login(struct buffer *buf, void *data) {
     struct userinfo *ui = (struct userinfo *)data;
     size_t pkgsize = 0;
     pkgsize += serialize_varint(buf, M_PACKET_LOGIN);
@@ -268,32 +290,38 @@ size_t build_login(struct buffer *buf, void *data)
     return pkgsize;
 }
 
-size_t build_encryption(struct buffer *buf, void *data)
-{
+size_t build_encryption(struct buffer *buf, void *data) {
     struct serverinfo *si = (struct serverinfo *)data;
-    struct bytearray *share_secret = &si->si_encinfo.e_secret;
-    struct bytearray *verify_token = &si->si_encinfo.e_verify;
+    struct buffer *share_secret = si->si_encinfo->e_secret;
+    struct buffer *verify_token = si->si_encinfo->e_verify;
 
     int ret;
+    // TODO: error handle
     ret = gen_rand_byte(share_secret, 16);
 
-    struct bytearray crypted_share_secret;
-    struct bytearray crypted_verify_token;
+    RSA *rsa = DER_load_pubkey_from_str(si->si_encinfo->e_pubkey);
+    int keysize = RSA_size(rsa);
+    struct buffer *crypted_share_secret = new_buffer(keysize);
+    struct buffer *crypted_verify_token = new_buffer(keysize);
+    if (!crypted_share_secret || !crypted_verify_token) {
+        // TODO: error handle
+    }
 
-    RSA *rsa = DER_load_pubkey_from_str(&si->si_encinfo.e_pubkey);
-    RSA_encrypt_with_pubkey(rsa, share_secret, &crypted_share_secret);
-    RSA_encrypt_with_pubkey(rsa, &verify_token, &crypted_verify_token);
+    // TODO: error handle
+    ret = RSA_encrypt_with_pubkey(rsa, share_secret, crypted_share_secret);
+    ret = RSA_encrypt_with_pubkey(rsa, verify_token, crypted_verify_token);
     RSA_free(rsa);
 
     size_t pktsize = 0;
-    pktsize += serialize_varint(buf, M_PACKET_ENCRYPT);
-    pktsize += serialize_str(buf, crypted_share_secret.b_data, crypted_share_secret.b_size);
-    pktsize += serialize_str(buf, crypted_verify_token.b_data, crypted_verify_token.b_size);
+    pktsize += serialize_varint(buf, M_PACKET_ENCRYPTRES);
+    pktsize += serialize_str(buf, crypted_share_secret->b_data, crypted_share_secret->b_size);
+    pktsize += serialize_str(buf, crypted_verify_token->b_data, crypted_verify_token->b_size);
+    del_buffer(crypted_share_secret);
+    del_buffer(crypted_verify_token);
     return pktsize;
 }
 
-size_t build_chat (struct buffer *buf, void *data)
-{
+size_t build_chat(struct buffer *buf, void *data) {
     const char *str = (const char *)data;
     size_t pktsize = 0;
     pktsize += serialize_varint(buf, M_PACKET_CHAT);
@@ -301,8 +329,7 @@ size_t build_chat (struct buffer *buf, void *data)
     return pktsize;
 }
 
-size_t build_set_difficult(struct buffer *buf, void *data)
-{
+size_t build_set_difficult(struct buffer *buf, void *data) {
     size_t pktsize = 0;
     pktsize += serialize_varint(buf, M_PACKET_SET_DIFFICULT);
     pktsize += serialize_varint(buf, *(int32_t *)data);

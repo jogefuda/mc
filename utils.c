@@ -2,8 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-void dump(void *buf, int n)
-{
+void dump(void *buf, int n) {
     char *_buf = buf;
     int a = n;
     while (a-- > 0)
@@ -18,8 +17,7 @@ void dump(void *buf, int n)
     putc('\n', stdout);
 }
 
-void *inc_bytearray(struct bytearray *arr, size_t size)
-{
+void *inc_bytearray(struct bytearray *arr, size_t size) {
     void *newptr = realloc(arr->b_data, arr->b_allocsize + size);
     if (newptr == NULL)
         return NULL;
@@ -28,8 +26,7 @@ void *inc_bytearray(struct bytearray *arr, size_t size)
     return newptr;
 }
 
-struct bytearray *new_bytearray(size_t len)
-{
+struct bytearray *new_bytearray(size_t len) {
     struct bytearray *arr = malloc(sizeof(struct bytearray));
     if (arr == NULL)
         return NULL;
@@ -45,8 +42,7 @@ struct bytearray *new_bytearray(size_t len)
     return arr;
 }
 
-void del_bytearray(struct bytearray *ptr)
-{
+void del_bytearray(struct bytearray *ptr) {
     if (ptr && ptr->b_data)
         free(ptr->b_data);
     if (ptr)
@@ -54,14 +50,14 @@ void del_bytearray(struct bytearray *ptr)
 }
 
 int inc_buffer_if_not_enough(struct buffer *arr, size_t size) {
+    if (arr->b_allocsize >= (arr->b_size + size)) return 1;
     if (arr->b_allocsize < (arr->b_size + size) && inc_buffer(arr, size)) {
         return 1;
     }
     return 0;
 }
 
-void *inc_buffer(struct buffer *arr, size_t size)
-{
+void *inc_buffer(struct buffer *arr, size_t size) {
     if (inc_bytearray(arr, size) != 0) {
         arr->b_next = arr->b_data + arr->b_size;
         return 1;
@@ -69,8 +65,7 @@ void *inc_buffer(struct buffer *arr, size_t size)
     return 0;
 }
 
-struct buffer *new_buffer(size_t len)
-{
+struct buffer *new_buffer(size_t len) {
     struct buffer *arr = malloc(sizeof(struct buffer));
     if (arr == NULL)
         return NULL;

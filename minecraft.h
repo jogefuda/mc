@@ -7,17 +7,23 @@
 
 enum MC_REQ {
     MC_REQ_HANDSHAKE,
-    MC_REQ_PING,
+    /* Status (Handshake) */
     MC_REQ_SPL,
+    MC_REQ_PING,
+
+    /* Login */
     MC_REQ_LOGIN,
+    MC_REQ_ENCRYPTRES,
+
+    /* Play */
     MC_REQ_CHAT,
     MC_REQ_SET_DIFFICULT,
 };
 
 enum MC_STATUS {
-    MC_STATUS_HANDSHAKE    = 1,
-    MC_STATUS_LOGIN        = 2,
-    MC_STATUS_PLAY         = 3
+    MC_STATUS_HANDSHAKE = 1,
+    MC_STATUS_LOGIN = 2,
+    MC_STATUS_PLAY = 3
 };
 
 struct serverinfo *mc_connect(const char *host, u_int16_t port, u_int32_t proto);
