@@ -12,10 +12,23 @@
 
 static void _mc_eventloop(struct serverinfo *si) {
     // TODO: this currently not working.
+    int ret;
     int epoll_fd = epoll_create(4);
     int sock_fd = si->si_conninfo.sockfd;
+    if (epoll_fd == -1) {
+        // TODO: err handle
+    }
 
-    epoll_ctl(epoll_fd, EPOLL_CTL_ADD, sock_fd, EPOLLIN | EPOLLERR);
+    struct epoll_event event = {
+        .data = sock_fd,
+        .events = EPOLLIN | EPOLLERR
+    };
+
+    ret = epoll_ctl(epoll_fd, EPOLL_CTL_ADD, sock_fd, &event);
+    if (ret == -1) {
+        // TODO: err handle
+    }
+
     struct epoll_event events[4];
     for (;;)
     {
@@ -63,13 +76,21 @@ struct serverinfo *mc_connect(const char *host, uint16_t port, uint32_t proto) {
     }
 
     struct serverinfo *si = malloc(sizeof(struct serverinfo));
+
     if (si == NULL)
     {
         fprintf(stderr, "Fail to malloc: %s", strerror(errno));
         return NULL;
     }
 
-    memset(si, 0, sizeof(struct serverinfo));
+    // memset(si, 0, sizeof(struct serverinfo));
+    si->si_encinfo = new_buffer(sizeof(struct encrypt));
+    si->si_encinfo->e_encctx = 0;
+    si->si_encinfo->e_decctx = 0;
+    if (!si->si_encinfo) {
+        // TODO: error handle
+    }
+
     si->si_conninfo.sockfd = fd;
     si->si_conninfo.addr = host;
     si->si_conninfo.port = port;
@@ -105,6 +126,14 @@ void mc_login(struct serverinfo *si, struct userinfo *ui) {
     send_packet(MC_REQ_LOGIN, si, ui, NULL);
 }
 
+void mc_wait_until_login_success(struct serverinfo *si) {
+    // TODO: use mutex
+    while (si->si_conninfo.state != MC_STATUS_PLAY) {
+        printf("=======================waiting=======================\n");
+        sleep(1);
+    }
+}
+
 void mc_chat(struct serverinfo *si, const char *msg) {
     send_packet(MC_REQ_CHAT, si, NULL, msg);
 }
@@ -113,13 +142,22 @@ void mc_set_difficult(struct serverinfo *si, int32_t level) {
     send_packet(MC_REQ_SET_DIFFICULT, si, NULL, &(int32_t){level});
 }
 
-void mc_init_decrypter(struct serverinfo *si) {
-    char *iv = si->si_encinfo->e_secret;
-    si->si_encinfo->e_encctx = aes_cipher_init(iv, iv, 0);
-    si->si_encinfo->e_decctx = aes_cipher_init(iv, iv, 1);
+void mc_init_cipher(struct serverinfo *si) {
+    char *iv = si->si_encinfo->e_secret->b_data;
+    si->si_encinfo->e_encctx = aes_cipher_init(iv, iv, 1);
+    si->si_encinfo->e_decctx = aes_cipher_init(iv, iv, 0);
 }
 
-void mc_cleanup(void *ptr) {
+void mc_cleanup(struct serverinfo *si) {
     // NOTE: serverinfo->e_encinfo is not free yet!
-    free(ptr);
+
+    shutdown(si->si_conninfo.sockfd, SHUT_WR);
+    close(si->si_conninfo.sockfd);
+    // free(si->si_encinfo->e_id);
+    // free(si->si_encinfo->e_encctx);
+    // free(si->si_encinfo->e_decctx);
+    // free(si->si_encinfo->e_pubkey);
+    // free(si->si_encinfo->e_verify);
+    // free(si->si_encinfo->e_secret);
+    // free(si);
 }
