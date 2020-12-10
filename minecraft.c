@@ -21,25 +21,19 @@ static void _mc_eventloop(struct serverinfo *si) {
 
     struct epoll_event event = {
         .data = sock_fd,
-        .events = EPOLLIN | EPOLLERR
+        .events = EPOLLIN | EPOLLERR | EPOLLET
     };
 
     ret = epoll_ctl(epoll_fd, EPOLL_CTL_ADD, sock_fd, &event);
-    if (ret == -1) {
-        // TODO: err handle
-    }
 
     struct epoll_event events[4];
-    for (;;)
-    {
-        int n_event = epoll_wait(epoll_fd, events, 4, -1);
+    for (;;) {
+        int n_event = epoll_wait(epoll_fd, events, 1, -1);
         uint32_t e = events[0].events;
-        if (e == EPOLLIN)
-        {
+
+        if (e == EPOLLIN) {
             read_packet(si, NULL, NULL);
-        }
-        else if (e == EPOLLERR)
-        {
+        } else if (e == EPOLLERR) {
             break;
         }
     }
@@ -49,8 +43,7 @@ static void _mc_eventloop(struct serverinfo *si) {
 struct serverinfo *mc_connect(const char *host, uint16_t port, uint32_t proto) {
     int fd = socket(AF_INET, SOCK_STREAM, 0);
 
-    if (fd < 0)
-    {
+    if (fd < 0) {
         fprintf(stderr, "Fail to create socket: %s", strerror(errno));
         return NULL;
     }
@@ -62,34 +55,31 @@ struct serverinfo *mc_connect(const char *host, uint16_t port, uint32_t proto) {
 
     int ret;
     ret = inet_pton(AF_INET, host, &sin.sin_addr);
-    if (ret != 1)
-    {
+    if (ret != 1) {
         fprintf(stderr, "Not a vail address: %s", strerror(errno));
         return NULL;
     }
 
     ret = connect(fd, (struct sockaddr *)&sin, sizeof(struct sockaddr_in));
-    if (ret != 0)
-    {
+    if (ret != 0) {
         fprintf(stderr, "Fail to connect to host: %s", strerror(errno));
         return NULL;
     }
 
     struct serverinfo *si = malloc(sizeof(struct serverinfo));
 
-    if (si == NULL)
-    {
+    if (si == NULL) {
         fprintf(stderr, "Fail to malloc: %s", strerror(errno));
         return NULL;
     }
 
     // memset(si, 0, sizeof(struct serverinfo));
-    si->si_encinfo = new_buffer(sizeof(struct encrypt));
-    si->si_encinfo->e_encctx = 0;
-    si->si_encinfo->e_decctx = 0;
+    si->si_encinfo = malloc(sizeof(struct encrypt));
     if (!si->si_encinfo) {
         // TODO: error handle
+        return 0;
     }
+    memset(si->si_encinfo, 0, sizeof(struct encrypt));
 
     si->si_conninfo.sockfd = fd;
     si->si_conninfo.addr = host;
@@ -107,8 +97,7 @@ void mc_getinfo(struct serverinfo *si, enum MC_REQ info) {
     si->si_conninfo.state = MC_STATUS_HANDSHAKE;
     send_packet(MC_REQ_HANDSHAKE, si, NULL, NULL);
 
-    switch (info)
-    {
+    switch (info) {
         case MC_REQ_PING:;
             // TODO: change this to unix time
             uint64_t time = 0x12345678;
@@ -127,9 +116,9 @@ void mc_login(struct serverinfo *si, struct userinfo *ui) {
 }
 
 void mc_wait_until_login_success(struct serverinfo *si) {
-    // TODO: use mutex
+    // TODO: use mutex instade of sleep
     while (si->si_conninfo.state != MC_STATUS_PLAY) {
-        printf("=======================waiting=======================\n");
+        puts("==== waiting ====\n");
         sleep(1);
     }
 }
@@ -151,13 +140,25 @@ void mc_init_cipher(struct serverinfo *si) {
 void mc_cleanup(struct serverinfo *si) {
     // NOTE: serverinfo->e_encinfo is not free yet!
 
+    if (!si) return;
+
     shutdown(si->si_conninfo.sockfd, SHUT_WR);
     close(si->si_conninfo.sockfd);
-    // free(si->si_encinfo->e_id);
-    // free(si->si_encinfo->e_encctx);
-    // free(si->si_encinfo->e_decctx);
-    // free(si->si_encinfo->e_pubkey);
-    // free(si->si_encinfo->e_verify);
-    // free(si->si_encinfo->e_secret);
-    // free(si);
+
+    if (si->si_encinfo) {
+        if (si->si_encinfo->e_encctx)
+            aes_cipher_free(si->si_encinfo->e_encctx);
+        if (si->si_encinfo->e_decctx)
+            aes_cipher_free(si->si_encinfo->e_decctx);
+        if (si->si_encinfo->e_id)
+            del_buffer(si->si_encinfo->e_id);
+        if (si->si_encinfo->e_pubkey)
+            del_buffer(si->si_encinfo->e_pubkey);
+        if (si->si_encinfo->e_verify)
+            del_buffer(si->si_encinfo->e_verify);
+        if (si->si_encinfo->e_secret)
+            del_buffer(si->si_encinfo->e_secret);
+    }
+
+    free(si);
 }

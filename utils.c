@@ -12,8 +12,14 @@ void dump(void *buf, int n) {
 
     a = n;
     _buf = buf;
-    while (a-- > 0)
-        printf("%c", (*_buf++));
+    while (a-- > 0) {
+        char *b = _buf++;
+        if (*b >= 0x20 && *b <= 'Z')
+            printf("%c", *b);
+        else
+            printf(" ");
+    }
+
     putc('\n', stdout);
 }
 
@@ -83,7 +89,10 @@ struct buffer *new_buffer(size_t len) {
 }
 
 void del_buffer(struct buffer *ptr) {
-    del_bytearray(ptr);
+    if (ptr && ptr->b_data)
+        free(ptr->b_data);
+    if (ptr)
+        free(ptr);
 }
 
 int get_varint_len(int32_t val) {

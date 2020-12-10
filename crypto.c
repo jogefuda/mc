@@ -106,6 +106,7 @@ void aes_cipher_update_u8(EVP_CIPHER_CTX *ctx, uint8_t val, uint8_t *out) {
 
 void aes_cipher_update(EVP_CIPHER_CTX *ctx, struct buffer *in, struct buffer *out) {
     int outl;
+    // TODO: return status;
     if (!EVP_CipherUpdate(ctx, out->b_data, &outl, in->b_data, in->b_size)) {
         printf("%s\n", ERR_error_string(ERR_get_error(), 0));
         out->b_size = 0;
@@ -114,7 +115,7 @@ void aes_cipher_update(EVP_CIPHER_CTX *ctx, struct buffer *in, struct buffer *ou
     out->b_size = outl;
 }
 
-void aes_clean(EVP_CIPHER_CTX *ctx) {
+void aes_cipher_free(EVP_CIPHER_CTX *ctx) {
     // EVP_CIPHER_CTX_clean(ctx);
     EVP_CIPHER_CTX_free(ctx);
 }
