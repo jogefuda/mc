@@ -56,6 +56,7 @@ void mc_getinfo(struct serverinfo *si, enum MC_REQ info);
 void mc_set_difficult(struct serverinfo *si, int32_t level);
 void mc_chat(struct serverinfo *si, const char *msg);
 void mc_eventloop(struct serverinfo *si);
-void mc_cleanup(void *ptr);
+void mc_cleanup(struct serverinfo *si);
+void mc_init_cipher(struct serverinfo *si);
 
 #endif // __MINECRAFT_H
