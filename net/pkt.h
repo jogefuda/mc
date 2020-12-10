@@ -8,17 +8,6 @@
 
 enum MC_REQ;
 
-/*
-// packet struct
-*/
-
-
-typedef struct userinfo {
-    char ui_name[16];
-    char ui_token[24];
-    char ui_uuid[24];
-} userinfo_t;
-
 enum M_PACKET_CLIENTBOUND {
     /* Status (Handshake) */
     M_PACKET_SLPRESP = 0x00,
@@ -31,6 +20,7 @@ enum M_PACKET_CLIENTBOUND {
     M_PACKET_SETCOMPRESSION = 0x03,
 
     /* Play */
+    M_PACKET_KEEPALIVE = 0x1F,
 
 };
 

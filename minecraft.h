@@ -34,6 +34,7 @@ typedef struct conninfo {
     uint16_t port;
     int32_t state;
     uint32_t thresh;
+    long keepalive;
 } conninfo_t;
 
 typedef struct encrypt {
@@ -50,6 +51,12 @@ typedef struct serverinfo {
     struct encrypt *si_encinfo;
 } serverinfo_t;
 
+typedef struct userinfo {
+    char ui_name[16];
+    char ui_token[24];
+    char ui_uuid[24];
+} userinfo_t;
+
 struct serverinfo *mc_connect(const char *host, u_int16_t port, u_int32_t proto);
 void mc_login(struct serverinfo *si, struct userinfo *ui);
 void mc_getinfo(struct serverinfo *si, enum MC_REQ info);
@@ -57,6 +64,7 @@ void mc_set_difficult(struct serverinfo *si, int32_t level);
 void mc_chat(struct serverinfo *si, const char *msg);
 void mc_eventloop(struct serverinfo *si);
 void mc_cleanup(struct serverinfo *si);
+void mc_wait_until_login_success(struct serverinfo *si);
 void mc_init_cipher(struct serverinfo *si);
 
 #endif // __MINECRAFT_H

@@ -67,6 +67,23 @@ static size_t deserialize_str(struct buffer *buf, struct buffer *out) {
     return len;
 }
 
+static size_t deserialize_short(struct buffer *buf, int16_t *out) {
+    out[1] = buf->b_next++;
+    out[0] = buf->b_next++;
+    return 2;
+}
+
+static size_t deserialize_long(struct buffer *buf, int64_t *out) {
+    out[7] = buf->b_next++;
+    out[6] = buf->b_next++;
+    out[5] = buf->b_next++;
+    out[4] = buf->b_next++;
+    out[3] = buf->b_next++;
+    out[2] = buf->b_next++;
+    out[1] = buf->b_next++;
+    return 8;
+}
+
 // serialize
 static size_t serialize_varint(struct buffer *buf, int32_t val) {
     inc_buffer_if_not_enough(buf, 5);
@@ -119,6 +136,11 @@ void parse_setcompression(struct serverinfo *si, struct buffer *buf) {
 
 void parse_loginsuccess(struct serverinfo *si, struct buffer *buf) {
     si->si_conninfo.state = MC_STATUS_PLAY;
+    // TODO: parse uuid string (16) 
+}
+
+void parse_keepalive(struct serverinfo *si, struct buffer *buf) {
+    deserialize_long(buf, &si->si_conninfo.keepalive);
 }
 
 void parse_encryptreq(struct serverinfo *si, struct buffer *buf) {
@@ -169,7 +191,7 @@ ssize_t read_packet(struct serverinfo *si, struct userinfo *ui, void *userdata) 
         aes_cipher_update(cipher, buf, buf);
     }
 
-    if (compress_enabled) {
+    if (compress_enabled && uncompressed_pktlen > 0) {
         // TODO: error handle
         out = new_buffer(buf->b_size);
         ret = mc_inflat_pkt(buf, out);
@@ -179,8 +201,16 @@ ssize_t read_packet(struct serverinfo *si, struct userinfo *ui, void *userdata) 
     }
 
     deserialize_varint(buf, &pkttype);
-
-    if (state == 2) {
+    // TODO: 1. impl state 1 and 2
+    //       2. is proccessed variable
+    if (state == MC_STATUS_PLAY) {
+        switch (pkttype) {
+            case M_PACKET_KEEPALIVE:
+                parse_keepalive(si, buf);
+                break;
+        }
+    }
+    else if (state == MC_STATUS_LOGIN) {
         switch (pkttype) {
             case M_PACKET_LOGINSUCCESS:
                 parse_loginsuccess(si, buf);
@@ -190,9 +220,6 @@ ssize_t read_packet(struct serverinfo *si, struct userinfo *ui, void *userdata) 
                 break;
             case M_PACKET_SETCOMPRESSION:
                 parse_setcompression(si, buf);
-                break;
-
-            default:
                 break;
                 // consume broken packet
         }
@@ -264,12 +291,8 @@ ssize_t send_packet(enum MC_REQ type, struct serverinfo *si, struct userinfo *ui
         aes_cipher_update(si->si_encinfo->e_encctx, buf, buf);
     }
 
-    printf("--------  dump begin --------\n");
-    dump(header->b_data, header->b_size);
-    dump(buf->b_data, buf->b_size);
     write(fd, header->b_data, header->b_size);
     write(fd, buf->b_data, buf->b_size);
-    printf("--------  dump end --------\n");
 
     del_buffer(header);
     del_buffer(buf);
