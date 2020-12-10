@@ -72,20 +72,12 @@ int gen_rand_byte(struct buffer *arr, size_t n) {
     inc_buffer_if_not_enough(arr, n);
     // TODO: error handle
 
-    for (size_t i = 0; i < n; i++)
-    {
-        arr->b_data[i] = 0;
-    }
-    arr->b_size = 16;
-    return 16;
-
-    // TODO: use fix iv and K for debug purpose
-    // int fd = open("/dev/random", O_RDONLY);
-    // ssize_t nbytes = read(fd, arr->b_data, n);
-    // arr->b_size += nbytes;
-    // arr->b_next += nbytes;
-    // close(fd);
-    // return nbytes;
+    int fd = open("/dev/random", O_RDONLY);
+    ssize_t nbytes = read(fd, arr->b_data, n);
+    arr->b_size += nbytes;
+    arr->b_next += nbytes;
+    close(fd);
+    return nbytes;
 }
 
 void openssl_load_err_str() {
@@ -95,8 +87,7 @@ void openssl_load_err_str() {
 EVP_CIPHER_CTX *aes_cipher_init(const char *key, const char *iv, int enc) {
     int ret;
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
-    // ret = EVP_CipherInit(ctx, EVP_aes_128_cfb8(), key, iv, enc);
-    ret = EVP_EncryptInit_ex(ctx, EVP_aes_128_cfb8(), NULL, key, iv);
+    ret = EVP_CipherInit(ctx, EVP_aes_128_cfb8(), key, iv, enc);
 
     if (!ret) {
         printf("%s\n", ERR_error_string(ERR_get_error(), 0));
@@ -105,16 +96,22 @@ EVP_CIPHER_CTX *aes_cipher_init(const char *key, const char *iv, int enc) {
     return ctx;
 }
 
-void aes_cipher_update(EVP_CIPHER_CTX *ctx, struct buffer *in, struct buffer *out) {
-    int inl, outl;
-    char s[100] = { 0 };
-    // EVP_CipherUpdate(ctx, out->b_next, &outl, in->b_next, in->b_size);
-    int a = EVP_EncryptUpdate(ctx, s, &outl, "abcd", 4);
-    if (!a) {
+void aes_cipher_update_u8(EVP_CIPHER_CTX *ctx, uint8_t val, uint8_t *out) {
+    int outl;
+    if (!EVP_CipherUpdate(ctx, out, &outl, &val, 1)) {
         printf("%s\n", ERR_error_string(ERR_get_error(), 0));
+        return;
     }
-    printf("%d, %d\n", a, outl);
-    printf("%X %X\n", s[0] & 0xff, s[1] & 0xff);
+}
+
+void aes_cipher_update(EVP_CIPHER_CTX *ctx, struct buffer *in, struct buffer *out) {
+    int outl;
+    if (!EVP_CipherUpdate(ctx, out->b_data, &outl, in->b_data, in->b_size)) {
+        printf("%s\n", ERR_error_string(ERR_get_error(), 0));
+        out->b_size = 0;
+        return;
+    }
+    out->b_size = outl;
 }
 
 void aes_clean(EVP_CIPHER_CTX *ctx) {

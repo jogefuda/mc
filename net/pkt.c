@@ -12,7 +12,7 @@
 #include <fcntl.h>
 
 // deserialize
-static ssize_t fread_varint(int fd, int32_t *out) {
+static ssize_t fread_varint(int fd, int32_t *out, EVP_CIPHER_CTX *ctx) {
     uint8_t tmp;
     size_t nbytes = 0;
     ssize_t n;
@@ -22,6 +22,10 @@ static ssize_t fread_varint(int fd, int32_t *out) {
     {
         if ((n = read(fd, &tmp, 1)) < 1)
             return n;
+
+        if (ctx)
+            aes_cipher_update_u8(ctx, tmp, &tmp);
+
         *out |= (tmp & 0b1111111) << (7 * nbytes++);
     } while (tmp & 0b10000000);
 
@@ -118,11 +122,6 @@ void parse_loginsuccess(struct serverinfo *si, struct buffer *buf) {
 }
 
 void parse_encryptreq(struct serverinfo *si, struct buffer *buf) {
-    si->si_encinfo = new_buffer(sizeof(struct encrypt));
-    if (!si->si_encinfo) {
-        // TODO: error handle
-    }
-
     si->si_encinfo->e_id = new_buffer(10);
     si->si_encinfo->e_pubkey = new_buffer(128);
     si->si_encinfo->e_verify = new_buffer(128);
@@ -140,31 +139,37 @@ void parse_encryptreq(struct serverinfo *si, struct buffer *buf) {
 //
 ssize_t read_packet(struct serverinfo *si, struct userinfo *ui, void *userdata) {
     int fd = si->si_conninfo.sockfd;
-    int is_compressed = si->si_conninfo.thresh > 0;
+    int compress_enabled = si->si_conninfo.thresh > 0;
+    int encrypt_enabled = si->si_encinfo->e_decctx;
+    EVP_CIPHER_CTX *cipher = si->si_encinfo->e_decctx;
     int state = si->si_conninfo.state;
     int ret;
     struct buffer *buf, *out;
     int32_t pktlen, uncompressed_pktlen, pkttype;
     size_t nbytes, remain_pktbytes;
 
-    fread_varint(fd, &pktlen);
+    fread_varint(fd, &pktlen, cipher);
     buf = new_buffer(pktlen);
     if (buf == NULL) {
         // TODO: error handle
     }
 
     nbytes = 0;
-    if (is_compressed)
-        nbytes += fread_varint(fd, &uncompressed_pktlen);
+    if (compress_enabled)
+        nbytes += fread_varint(fd, &uncompressed_pktlen, cipher);
 
-    remain_pktbytes = (is_compressed) ? pktlen - nbytes : pktlen;
+    remain_pktbytes = (compress_enabled) ? pktlen - nbytes : pktlen;
 
-    if ((ret = read(fd, buf->b_next, remain_pktbytes)) < 1) {
+    if ((ret = read(fd, buf->b_data, remain_pktbytes)) < 1) {
         // TODO: error handle
     }
-    buf->b_size += ret;
+    buf->b_size = ret;
 
-    if (is_compressed) {
+    if (encrypt_enabled) {
+        aes_cipher_update(cipher, buf, buf);
+    }
+
+    if (compress_enabled) {
         // TODO: error handle
         out = new_buffer(buf->b_size);
         ret = mc_inflat_pkt(buf, out);
@@ -206,6 +211,7 @@ ssize_t send_packet(enum MC_REQ type, struct serverinfo *si, struct userinfo *ui
     header = new_buffer(10);
     buf = new_buffer(128);
     int compress_enabled = si->si_conninfo.thresh > 0;
+    int encrypt_enabled = si->si_encinfo->e_encctx;
     int fd = si->si_conninfo.sockfd;
     int state = si->si_conninfo.state;
 
@@ -224,7 +230,7 @@ ssize_t send_packet(enum MC_REQ type, struct serverinfo *si, struct userinfo *ui
 
             // TODO: change to event based.
             mc_auth(si, NULL);
-            mc_init_decrypter(si);
+            mc_init_cipher(si);
             break;
         case MC_REQ_CHAT:
             pktsize = build_chat(buf, data); break;
@@ -251,6 +257,11 @@ ssize_t send_packet(enum MC_REQ type, struct serverinfo *si, struct userinfo *ui
     }
     else {
         serialize_varint(header, pktsize);
+    }
+
+    if (encrypt_enabled) {
+        aes_cipher_update(si->si_encinfo->e_encctx, header, header);
+        aes_cipher_update(si->si_encinfo->e_encctx, buf, buf);
     }
 
     printf("--------  dump begin --------\n");
