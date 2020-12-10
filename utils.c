@@ -14,7 +14,7 @@ void dump(void *buf, int n) {
     _buf = buf;
     while (a-- > 0) {
         char *b = _buf++;
-        if (*b >= 0x20 && *b <= 'Z')
+        if (*b >= 0x20 && *b <= 'z')
             printf("%c", *b);
         else
             printf(" ");

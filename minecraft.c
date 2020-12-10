@@ -21,7 +21,7 @@ static void _mc_eventloop(struct serverinfo *si) {
 
     struct epoll_event event = {
         .data = sock_fd,
-        .events = EPOLLIN | EPOLLERR | EPOLLET
+        .events = EPOLLIN | EPOLLERR
     };
 
     ret = epoll_ctl(epoll_fd, EPOLL_CTL_ADD, sock_fd, &event);

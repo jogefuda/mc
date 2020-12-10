@@ -74,17 +74,18 @@ ssize_t read_packet(struct serverinfo *si, struct userinfo *ui, void *userdata) 
     // printf("read: %d\n", ret);
     buf->b_size = ret;
 
+    if (encrypt_enabled)
+        aes_cipher_update(cipher, buf, buf);
+
     if (compress_enabled && uncompressed_pktlen > 0) {
         // TODO: error handle
-        out = new_buffer(buf->b_size);
+        out = new_buffer(uncompressed_pktlen);
         ret = mc_inflat_pkt(buf, out);
         del_buffer(buf);
         buf = out;
         out = NULL;
     }
 
-    if (encrypt_enabled)
-        aes_cipher_update(cipher, buf, buf);
     deserialize_varint(buf, &pkttype);
     // TODO: 1. impl state 1 and 2
     //       2. is proccessed variable
