@@ -24,7 +24,8 @@ void parse_loginsuccess(struct serverinfo *si, struct buffer *buf) {
 
 void parse_keepalive(struct serverinfo *si, struct buffer *buf) {
     deserialize_long(buf, &si->si_conninfo.keepalive);
-    puts("KEEPALIVE REQUIRE\n");
+    puts("來了老弟！");
+    send_packet(MC_REQ_KEEPALIVE, si, NULL, &si->si_conninfo.keepalive);
 }
 
 void parse_encryptreq(struct serverinfo *si, struct buffer *buf) {
@@ -70,6 +71,7 @@ ssize_t read_packet(struct serverinfo *si, struct userinfo *ui, void *userdata) 
     if ((ret = read(fd, buf->b_data, remain_pktbytes)) < 1) {
         // TODO: error handle
         printf("ERROR=================\n");
+        return -1;
     }
     // printf("read: %d\n", ret);
     buf->b_size = ret;
@@ -91,7 +93,7 @@ ssize_t read_packet(struct serverinfo *si, struct userinfo *ui, void *userdata) 
     //       2. is proccessed variable
     if (state == MC_STATUS_PLAY) {
         switch (pkttype) {
-            case M_PACKET_KEEPALIVE:
+            case M_PACKET_KEEPALIVE_C:
                 parse_keepalive(si, buf);
                 break;
         }
@@ -111,7 +113,7 @@ ssize_t read_packet(struct serverinfo *si, struct userinfo *ui, void *userdata) 
     }
     // buf->b_next = buf->b_data;
     // dump(buf->b_data, buf->b_size);
-    printf("pkgsize: %d, 0x%x\n", pktlen, pkttype);
+    // printf("pkgsize: %d, 0x%x\n", pktlen, pkttype);
 
     del_buffer(buf);
     return 0;
@@ -122,7 +124,7 @@ ssize_t send_packet(enum MC_REQ type, struct serverinfo *si, struct userinfo *ui
     header = new_buffer(10);
     buf = new_buffer(128);
     int compress_enabled = si->si_conninfo.thresh > 0;
-    int encrypt_enabled = si->si_encinfo->e_encctx;
+    int encrypt_enabled = si->si_encinfo->e_encctx != 0;
     int fd = si->si_conninfo.sockfd;
     int state = si->si_conninfo.state;
 
@@ -147,6 +149,8 @@ ssize_t send_packet(enum MC_REQ type, struct serverinfo *si, struct userinfo *ui
             pktsize = build_chat(buf, data); break;
         case MC_REQ_SET_DIFFICULT:
             pktsize = build_set_difficult(buf, data); break;
+        case MC_REQ_KEEPALIVE:
+            pktsize = build_keepalive(buf, data); break;
     }
 
     if (compress_enabled) {
@@ -259,5 +263,13 @@ size_t build_set_difficult(struct buffer *buf, void *data) {
     size_t pktsize = 0;
     pktsize += serialize_varint(buf, M_PACKET_SET_DIFFICULT);
     pktsize += serialize_varint(buf, *(int32_t *)data);
+    return pktsize;
+}
+
+size_t build_keepalive(struct buffer *buf, void *data) {
+    size_t pktsize = 0;
+    pktsize += serialize_varint(buf, M_PACKET_KEEPALIVE_S);
+    pktsize += serialize_long(buf, *(int64_t *)data);
+    printf("去了老弟！%d, %lx\n", pktsize, *(int64_t *)(data));
     return pktsize;
 }

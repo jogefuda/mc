@@ -21,9 +21,15 @@ int main(int argc, char *argv[]) {
     mc_login(si, &ui);
     mc_eventloop(si);
     mc_wait_until_login_success(si);
-    mc_chat(si, "Cursed world");
+    mc_chat(si, "你好， Cursed world");
 
-    char buf[256] = "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890";
+    char buf[256] = "";
+    for (size_t i = 0; i < 20; i++) {
+        // sprintf(buf, "Hello! %d\n", i);
+        // mc_chat(si, buf);
+        sleep(1);
+    }
+
     mc_chat(si, buf);
     sleep(1);
     // mc_wait_until_login_success(si);

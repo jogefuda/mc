@@ -19,6 +19,7 @@ enum MC_REQ {
     /* Play */
     MC_REQ_CHAT,
     MC_REQ_SET_DIFFICULT,
+    MC_REQ_KEEPALIVE,
 };
 
 enum MC_STATUS {

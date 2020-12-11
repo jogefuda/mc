@@ -20,7 +20,7 @@ enum M_PACKET_CLIENTBOUND {
     M_PACKET_SETCOMPRESSION = 0x03,
 
     /* Play */
-    M_PACKET_KEEPALIVE = 0xFF,
+    M_PACKET_KEEPALIVE_C = 0x1F,
 
 };
 
@@ -36,6 +36,7 @@ enum M_PACKET_SERVERBOUND {
     M_PACKET_ENCRYPTRES = 0x01,
 
     /* Play */
+    M_PACKET_KEEPALIVE_S = 0x10,
     M_PACKET_SET_DIFFICULT = 0x02,
     M_PACKET_CHAT = 0x03,
 };
@@ -47,6 +48,7 @@ size_t build_login(struct buffer *buf, void *data);
 size_t build_chat(struct buffer *buf, void *data);
 size_t build_set_difficult(struct buffer *buf, void *data);
 size_t build_encryption(struct buffer *buf, void *data);
+size_t build_keepalive(struct buffer *buf, void *data);
 
 ssize_t read_packet(struct serverinfo *si, struct userinfo *ui, void *userdata);
 ssize_t send_packet(enum MC_REQ type, struct serverinfo *si, struct userinfo *ui, void *data);

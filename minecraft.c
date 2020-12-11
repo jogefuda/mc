@@ -21,7 +21,7 @@ static void _mc_eventloop(struct serverinfo *si) {
 
     struct epoll_event event = {
         .data = sock_fd,
-        .events = EPOLLIN | EPOLLERR
+        .events = EPOLLIN | EPOLLHUP | EPOLLERR
     };
 
     ret = epoll_ctl(epoll_fd, EPOLL_CTL_ADD, sock_fd, &event);
@@ -32,10 +32,12 @@ static void _mc_eventloop(struct serverinfo *si) {
         uint32_t e = events[0].events;
 
         if (e == EPOLLIN) {
-            read_packet(si, NULL, NULL);
-        } else if (e == EPOLLERR) {
+            ret = read_packet(si, NULL, NULL);
+        } else if (e == EPOLLERR || e == EPOLLHUP) {
             break;
         }
+
+        if (ret == -1) break;
     }
     close(epoll_fd);
 }
