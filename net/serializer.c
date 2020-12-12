@@ -62,16 +62,15 @@ size_t deserialize_short(struct buffer *buf, int16_t *out) {
 
 size_t deserialize_long(struct buffer *buf, int64_t *out) {
     char *_out = out;
-    *out = *(long *)buf->b_next;
-    buf->b_next += 8;
-    // _out[7] = *buf->b_next++;
-    // _out[6] = *buf->b_next++;
-    // _out[5] = *buf->b_next++;
-    // _out[4] = *buf->b_next++;
-    // _out[3] = *buf->b_next++;
-    // _out[2] = *buf->b_next++;
-    // _out[1] = *buf->b_next++;
-    // _out[0] = *buf->b_next++;
+    // *out = *(long *)buf->b_next;
+    _out[7] = *buf->b_next++;
+    _out[6] = *buf->b_next++;
+    _out[5] = *buf->b_next++;
+    _out[4] = *buf->b_next++;
+    _out[3] = *buf->b_next++;
+    _out[2] = *buf->b_next++;
+    _out[1] = *buf->b_next++;
+    _out[0] = *buf->b_next++;
     return 8;
 }
 
@@ -132,6 +131,7 @@ size_t serialize_long(struct buffer *buf, long val) {
     *buf->b_next++ = (val >> (8 * 2)) & 0xff;
     *buf->b_next++ = (val >> (8 * 1)) & 0xff;
     *buf->b_next++ = (val >> (8 * 0)) & 0xff;
+    buf->b_size += 8;
     return 8;
 }
 
