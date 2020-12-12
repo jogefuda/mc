@@ -91,46 +91,47 @@ struct serverinfo *mc_connect(const char *host, uint16_t port, uint32_t proto) {
 }
 
 void mc_eventloop(struct serverinfo *si) {
+    // TODO: wait until epoll is in ready state
     pthread_t t;
     pthread_create(&t, NULL, _mc_eventloop, si);
 }
 
-void mc_getinfo(struct serverinfo *si, enum MC_REQ info) {
-    si->si_conninfo.state = MC_STATUS_HANDSHAKE;
-    send_packet(MC_REQ_HANDSHAKE, si, NULL, NULL);
+void mc_getinfo(struct serverinfo *si, enum M_REQ info) {
+    si->si_conninfo.state = M_STATE_HANDSHAKE;
+    send_packet(M_REQ_HANDSHAKE, si, NULL, NULL);
 
     switch (info) {
-        case MC_REQ_PING:;
+        case M_REQ_PING:;
             // TODO: change this to unix time
             uint64_t time = 0x12345678;
-            send_packet(MC_REQ_PING, si, NULL, &time);
+            send_packet(M_REQ_PING, si, NULL, &time);
             break;
-        case MC_REQ_SPL:;
-            send_packet(MC_REQ_SPL, si, NULL, NULL);
+        case M_REQ_SPL:;
+            send_packet(M_REQ_SPL, si, NULL, NULL);
             break;
     };
 }
 
 void mc_login(struct serverinfo *si, struct userinfo *ui) {
-    si->si_conninfo.state = MC_STATUS_LOGIN;
-    send_packet(MC_REQ_HANDSHAKE, si, NULL, NULL);
-    send_packet(MC_REQ_LOGIN, si, ui, NULL);
+    si->si_conninfo.state = M_STATE_LOGIN;
+    send_packet(M_REQ_HANDSHAKE, si, NULL, NULL);
+    send_packet(M_REQ_LOGIN, si, ui, NULL);
 }
 
 void mc_wait_until_login_success(struct serverinfo *si) {
     // TODO: use mutex instade of sleep
-    while (si->si_conninfo.state != MC_STATUS_PLAY) {
+    while (si->si_conninfo.state != M_STATE_PLAY) {
         puts("==== waiting ====\n");
         sleep(1);
     }
 }
 
 void mc_chat(struct serverinfo *si, const char *msg) {
-    send_packet(MC_REQ_CHAT, si, NULL, msg);
+    send_packet(M_REQ_CHAT, si, NULL, msg);
 }
 
 void mc_set_difficult(struct serverinfo *si, int32_t level) {
-    send_packet(MC_REQ_SET_DIFFICULT, si, NULL, &(int32_t){level});
+    send_packet(M_REQ_SET_DIFFICULT, si, NULL, &(int32_t){level});
 }
 
 void mc_init_cipher(struct serverinfo *si) {
@@ -163,4 +164,13 @@ void mc_cleanup(struct serverinfo *si) {
     }
 
     free(si);
+}
+
+
+void mc_player_move(struct serverinfo *si, double x, double y, double z, int ground) {
+    // send_packet(M_REQ_MOVE, si, NULL, msg);
+}
+
+void mc_player_lookat(struct serverinfo *si, double pitch, double law) {
+
 }

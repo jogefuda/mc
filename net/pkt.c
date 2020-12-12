@@ -1,48 +1,15 @@
 #include "pkt.h"
+#include "pktparser.h"
 #include "../crypto.h"
-#include "../utils.h"
 #include "../compress.h"
+#include "../utils.h"
 #include "serialize.h"
-#include "auth.h"
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
 
 // parse packet
-void parse_setcompression(struct serverinfo *si, struct buffer *buf) {
-    int32_t thresh;
-    deserialize_varint(buf, &thresh);
-    si->si_conninfo.thresh = thresh;
-}
-
-void parse_loginsuccess(struct serverinfo *si, struct buffer *buf) {
-    si->si_conninfo.state = MC_STATUS_PLAY;
-    // TODO: parse uuid string (16) 
-    //             name string
-}
-
-void parse_keepalive(struct serverinfo *si, struct buffer *buf) {
-    deserialize_long(buf, &si->si_conninfo.keepalive);
-    puts("來了老弟！");
-    send_packet(MC_REQ_KEEPALIVE, si, NULL, &si->si_conninfo.keepalive);
-}
-
-void parse_encryptreq(struct serverinfo *si, struct buffer *buf) {
-    si->si_encinfo->e_id = new_buffer(10);
-    si->si_encinfo->e_secret = new_buffer(16);
-    si->si_encinfo->e_pubkey = new_buffer(128);
-    si->si_encinfo->e_verify = new_buffer(128);
-    if (!si->si_encinfo->e_id || !si->si_encinfo->e_pubkey || !si->si_encinfo->e_verify) {
-        // TODO: error handle
-    }
-
-    deserialize_str(buf, si->si_encinfo->e_id);
-    deserialize_str(buf, si->si_encinfo->e_pubkey);
-    deserialize_str(buf, si->si_encinfo->e_verify);
-
-    send_packet(MC_REQ_ENCRYPTRES, si, NULL, NULL);
-}
 
 //
 ssize_t read_packet(struct serverinfo *si, struct userinfo *ui, void *userdata) {
@@ -52,7 +19,7 @@ ssize_t read_packet(struct serverinfo *si, struct userinfo *ui, void *userdata) 
     EVP_CIPHER_CTX *cipher = si->si_encinfo->e_decctx;
     int state = si->si_conninfo.state;
     int ret;
-    struct buffer *buf, *out;
+    struct buffer *buf, *zbuf;
     int32_t pktlen, uncompressed_pktlen, pkttype;
     size_t nbytes, remain_pktbytes;
 
@@ -73,7 +40,6 @@ ssize_t read_packet(struct serverinfo *si, struct userinfo *ui, void *userdata) 
         printf("ERROR=================\n");
         return -1;
     }
-    // printf("read: %d\n", ret);
     buf->b_size = ret;
 
     if (encrypt_enabled)
@@ -81,23 +47,39 @@ ssize_t read_packet(struct serverinfo *si, struct userinfo *ui, void *userdata) 
 
     if (compress_enabled && uncompressed_pktlen > 0) {
         // TODO: error handle
-        out = new_buffer(uncompressed_pktlen);
-        ret = mc_inflat_pkt(buf, out);
+        zbuf = new_buffer(uncompressed_pktlen);
+        ret = mc_inflat_pkt(buf, zbuf);
         del_buffer(buf);
-        buf = out;
-        out = NULL;
+        buf = zbuf;
+        zbuf = NULL;
     }
 
     deserialize_varint(buf, &pkttype);
     // TODO: 1. impl state 1 and 2
     //       2. is proccessed variable
-    if (state == MC_STATUS_PLAY) {
+    if (state == M_STATE_PLAY) {
         switch (pkttype) {
             case M_PACKET_KEEPALIVE_C:
                 parse_keepalive(si, buf);
                 break;
+            case M_PACKET_SET_DIFFICULT_C:
+                parse_set_difficult(si, buf);
+                break;
+            case M_PACKET_DECLARE_COMMAND:
+                parse_declare_command(si, buf);
+                break;
+            case M_PACKET_PLAYER_STATUS:
+                parse_player_status(si, buf);
+                break;
+            case M_PACKET_PLAYER_POSITION_AND_LOOK:
+                parse_player_position_and_look(si, buf);
+                break;
+            case M_PACKET_UPDATE_VIEW_POSITION:
+                parse_update_view_position(si, buf);
+                break;
+
         }
-    } else if (state == MC_STATUS_LOGIN) {
+    } else if (state == M_STATE_LOGIN) {
         switch (pkttype) {
             case M_PACKET_LOGINSUCCESS:
                 parse_loginsuccess(si, buf);
@@ -108,9 +90,12 @@ ssize_t read_packet(struct serverinfo *si, struct userinfo *ui, void *userdata) 
             case M_PACKET_SETCOMPRESSION:
                 parse_setcompression(si, buf);
                 break;
-                // consume broken packet
+
         }
     }
+
+    // TODO: clear this out
+    // consume broken packet (if any)
     // buf->b_next = buf->b_data;
     // dump(buf->b_data, buf->b_size);
     // printf("pkgsize: %d, 0x%x\n", pktlen, pkttype);
@@ -119,7 +104,7 @@ ssize_t read_packet(struct serverinfo *si, struct userinfo *ui, void *userdata) 
     return 0;
 }
 
-ssize_t send_packet(enum MC_REQ type, struct serverinfo *si, struct userinfo *ui, void *data) {
+ssize_t send_packet(enum M_REQ type, struct serverinfo *si, struct userinfo *ui, void *data) {
     struct buffer *buf, *zbuf, *header;
     header = new_buffer(10);
     buf = new_buffer(128);
@@ -130,26 +115,26 @@ ssize_t send_packet(enum MC_REQ type, struct serverinfo *si, struct userinfo *ui
 
     size_t pktsize;
     switch (type) {
-        case MC_REQ_HANDSHAKE:
+        case M_REQ_HANDSHAKE:
             pktsize = build_handshake(buf, si); break;
-        case MC_REQ_PING:
+        case M_REQ_PING:
             pktsize = build_ping(buf, data); break;
-        case MC_REQ_SPL:
+        case M_REQ_SPL:
             pktsize = build_slp(buf, NULL); break;
-        case MC_REQ_LOGIN:
+        case M_REQ_LOGIN:
             pktsize = build_login(buf, ui); break;
-        case MC_REQ_ENCRYPTRES:
+        case M_REQ_ENCRYPTRES:
             pktsize = build_encryption(buf, si);
 
-            // TODO: change to event based.
+            // TODO: queue.
             mc_auth(si, NULL);
             mc_init_cipher(si);
             break;
-        case MC_REQ_CHAT:
+        case M_REQ_CHAT:
             pktsize = build_chat(buf, data); break;
-        case MC_REQ_SET_DIFFICULT:
+        case M_REQ_SET_DIFFICULT:
             pktsize = build_set_difficult(buf, data); break;
-        case MC_REQ_KEEPALIVE:
+        case M_REQ_KEEPALIVE:
             pktsize = build_keepalive(buf, data); break;
     }
 
@@ -158,6 +143,8 @@ ssize_t send_packet(enum MC_REQ type, struct serverinfo *si, struct userinfo *ui
             zbuf = new_buffer(buf->b_allocsize * 0.8);
             if (zbuf == NULL) {
                 // TODO: error handle
+
+                // return 0;
             }
             mc_deflat_pkt(buf, zbuf);
             del_buffer(buf);
@@ -261,7 +248,7 @@ size_t build_chat(struct buffer *buf, void *data) {
 
 size_t build_set_difficult(struct buffer *buf, void *data) {
     size_t pktsize = 0;
-    pktsize += serialize_varint(buf, M_PACKET_SET_DIFFICULT);
+    pktsize += serialize_varint(buf, M_PACKET_SET_DIFFICULT_S);
     pktsize += serialize_varint(buf, *(int32_t *)data);
     return pktsize;
 }
@@ -270,6 +257,5 @@ size_t build_keepalive(struct buffer *buf, void *data) {
     size_t pktsize = 0;
     pktsize += serialize_varint(buf, M_PACKET_KEEPALIVE_S);
     pktsize += serialize_long(buf, *(int64_t *)data);
-    printf("去了老弟！%d, %lx\n", pktsize, *(int64_t *)(data));
     return pktsize;
 }

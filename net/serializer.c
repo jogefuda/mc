@@ -38,7 +38,6 @@ size_t deserialize_varint(struct buffer *buf, int32_t *out) {
 
 size_t deserialize_str(struct buffer *buf, struct buffer *out) {
     int32_t len;
-
     deserialize_varint(buf, &len);
 
     if (len == 0)
@@ -54,15 +53,8 @@ size_t deserialize_str(struct buffer *buf, struct buffer *out) {
     return len;
 }
 
-size_t deserialize_short(struct buffer *buf, int16_t *out) {
-    out[1] = *buf->b_next++;
-    out[0] = *buf->b_next++;
-    return 2;
-}
-
 size_t deserialize_long(struct buffer *buf, int64_t *out) {
     char *_out = out;
-    // *out = *(long *)buf->b_next;
     _out[7] = *buf->b_next++;
     _out[6] = *buf->b_next++;
     _out[5] = *buf->b_next++;
@@ -74,8 +66,14 @@ size_t deserialize_long(struct buffer *buf, int64_t *out) {
     return 8;
 }
 
+size_t deserialize_short(struct buffer *buf, int16_t *out) {
+    out[1] = *buf->b_next++;
+    out[0] = *buf->b_next++;
+    return 2;
+}
+
 size_t deserialize_char(struct buffer *buf, int8_t *out) {
-    *out = *buf->b_data++;
+    *out = *buf->b_next++;
     return 1;
 }
 
@@ -101,16 +99,6 @@ size_t serialize_varint(struct buffer *buf, int32_t val) {
     return n;
 }
 
-size_t serialize_short(struct buffer *buf, short val) {
-    inc_buffer_if_not_enough(buf, 2);
-    char *_buf = buf->b_next;
-    _buf[0] = (val >> 8) & 0xff;
-    _buf[1] = val & 0xff;
-    buf->b_next += 2;
-    buf->b_size += 2;
-    return sizeof(short);
-}
-
 size_t serialize_str(struct buffer *buf, const char *str, size_t n) {
     inc_buffer_if_not_enough(buf, 5 + n);
     char *_buf = buf->b_next;
@@ -122,7 +110,7 @@ size_t serialize_str(struct buffer *buf, const char *str, size_t n) {
 }
 
 size_t serialize_long(struct buffer *buf, long val) {
-    inc_buffer_if_not_enough(buf, sizeof(val));
+    inc_buffer_if_not_enough(buf, 8);
     *buf->b_next++ = (val >> (8 * 7)) & 0xff;
     *buf->b_next++ = (val >> (8 * 6)) & 0xff;
     *buf->b_next++ = (val >> (8 * 5)) & 0xff;
@@ -134,4 +122,15 @@ size_t serialize_long(struct buffer *buf, long val) {
     buf->b_size += 8;
     return 8;
 }
+
+size_t serialize_short(struct buffer *buf, short val) {
+    inc_buffer_if_not_enough(buf, 2);
+    char *_buf = buf->b_next;
+    _buf[0] = (val >> 8) & 0xff;
+    _buf[1] = val & 0xff;
+    buf->b_next += 2;
+    buf->b_size += 2;
+    return sizeof(short);
+}
+
 

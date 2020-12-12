@@ -6,26 +6,26 @@
 #include <sys/types.h>
 #include <openssl/evp.h>
 
-enum MC_REQ {
-    MC_REQ_HANDSHAKE,
+enum M_REQ {
+    M_REQ_HANDSHAKE,
     /* Status (Handshake) */
-    MC_REQ_SPL,
-    MC_REQ_PING,
+    M_REQ_SPL,
+    M_REQ_PING,
 
     /* Login */
-    MC_REQ_LOGIN,
-    MC_REQ_ENCRYPTRES,
+    M_REQ_LOGIN,
+    M_REQ_ENCRYPTRES,
 
     /* Play */
-    MC_REQ_CHAT,
-    MC_REQ_SET_DIFFICULT,
-    MC_REQ_KEEPALIVE,
+    M_REQ_CHAT,
+    M_REQ_SET_DIFFICULT,
+    M_REQ_KEEPALIVE,
 };
 
-enum MC_STATUS {
-    MC_STATUS_HANDSHAKE = 1,
-    MC_STATUS_LOGIN = 2,
-    MC_STATUS_PLAY = 3
+enum M_STATE {
+    M_STATE_HANDSHAKE = 1,
+    M_STATE_LOGIN = 2,
+    M_STATE_PLAY = 3
 };
 
 typedef struct conninfo {
@@ -60,12 +60,12 @@ typedef struct userinfo {
 
 struct serverinfo *mc_connect(const char *host, u_int16_t port, u_int32_t proto);
 void mc_login(struct serverinfo *si, struct userinfo *ui);
-void mc_getinfo(struct serverinfo *si, enum MC_REQ info);
+void mc_getinfo(struct serverinfo *si, enum M_REQ info);
 void mc_set_difficult(struct serverinfo *si, int32_t level);
 void mc_chat(struct serverinfo *si, const char *msg);
-void mc_eventloop(struct serverinfo *si);
-void mc_cleanup(struct serverinfo *si);
-void mc_wait_until_login_success(struct serverinfo *si);
 void mc_init_cipher(struct serverinfo *si);
+void mc_eventloop(struct serverinfo *si);
+void mc_wait_until_login_success(struct serverinfo *si);
+void mc_cleanup(struct serverinfo *si);
 
 #endif // __MINECRAFT_H
