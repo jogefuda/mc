@@ -162,7 +162,7 @@ ssize_t send_packet(enum MC_REQ type, struct serverinfo *si, struct userinfo *ui
             mc_deflat_pkt(buf, zbuf);
             del_buffer(buf);
             buf = zbuf;
-            serialize_varint(header, pktsize + get_varint_len(pktsize));
+            serialize_varint(header, buf->b_size + get_varint_len(pktsize));
             serialize_varint(header, pktsize);
         } else {
             serialize_varint(header, pktsize + get_varint_len(0));
