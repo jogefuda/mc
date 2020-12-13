@@ -42,6 +42,22 @@ static void _mc_eventloop(struct serverinfo *si) {
     close(epoll_fd);
 }
 
+char *mc_err_getstr(enum M_ERR err) {
+    switch (err) {
+        case M_ERR_MEMORY: return "Fail to memory allocation"; break;
+        case M_ERR_INFLAT: return "Fail to decompress packet"; break;
+        case M_ERR_DEFLAT: return "Fail to compress packet"; break;
+        case M_ERR_ENCRYPT: return "Fail to encrypt packet"; break;
+        case M_ERR_DECRYPT: return "Fail to decrypt packet"; break;
+        case M_ERR_PUBKEY: return "Fail to parse public key. reason: %s"; break;
+        case M_ERR_SECRETKEY: return "Fail to generate secret key"; break;
+        case M_ERR_CIPHER: return "Fail to init cipher. reason %s"; break;
+        case M_ERR_DIGEST: return "Fail to generate digest"; break;
+        case M_ERR_DATA: return "Fail to read data"; break;
+        default: return "No mapping"; break;
+    }
+}
+
 struct serverinfo *mc_connect(const char *host, uint16_t port, uint32_t proto) {
     openssl_load_err_str();
     int fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -135,10 +151,17 @@ void mc_set_difficult(struct serverinfo *si, int32_t level) {
     send_packet(M_REQ_SET_DIFFICULT, si, NULL, &(int32_t){level});
 }
 
-void mc_init_cipher(struct serverinfo *si) {
+int mc_init_cipher(struct serverinfo *si) {
+    /* Init cipher for encrypt and decrypt */
     char *iv = si->si_encinfo->e_secret->b_data;
     si->si_encinfo->e_encctx = aes_cipher_init(iv, iv, 1);
     si->si_encinfo->e_decctx = aes_cipher_init(iv, iv, 0);
+
+    // TODO: Do i need clean the ctx ?
+    if (si->si_encinfo->e_encctx == NULL || si->si_encinfo->e_decctx == NULL)
+        return M_FAIL;
+
+    return M_SUCCESS;
 }
 
 void mc_cleanup(struct serverinfo *si) {

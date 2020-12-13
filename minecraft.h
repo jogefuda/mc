@@ -1,10 +1,29 @@
 #ifndef __MINECRAFT_H
 #define __MINECRAFT_H
 
-#include "net/pkt.h"
+#include "crypto.h"
 #include "version.h"
-#include <sys/types.h>
+#include "net/pkt.h"
 #include <openssl/evp.h>
+#include <sys/types.h>
+
+enum M_ERR {
+    M_ERR_MEMORY,      /* When fail to alloc memory */
+    M_ERR_SECRETKEY,   /* When fail to generate secret key */
+    M_ERR_PUBKEY,      /* When fail to parse public key secret key */
+    M_ERR_CIPHER,      /* When fail to init cipher */
+    M_ERR_ENCRYPT,     /* When fail to encrypt data */
+    M_ERR_DECRYPT,     /* When fail to decrypt data */
+    M_ERR_DEFLAT,      /* When fail to compress packet */
+    M_ERR_INFLAT,      /* When fail to uncompress packet */
+    M_ERR_DATA,        /* When fail to read socket */
+    M_ERR_DIGEST,      /* When fail to generate digest */
+};
+
+typedef struct mc_message {
+    int type;
+
+} mc_message_t;
 
 enum M_REQ {
     M_REQ_HANDSHAKE,
@@ -63,9 +82,10 @@ void mc_login(struct serverinfo *si, struct userinfo *ui);
 void mc_getinfo(struct serverinfo *si, enum M_REQ info);
 void mc_set_difficult(struct serverinfo *si, int32_t level);
 void mc_chat(struct serverinfo *si, const char *msg);
-void mc_init_cipher(struct serverinfo *si);
+int mc_init_cipher(struct serverinfo *si);
 void mc_eventloop(struct serverinfo *si);
 void mc_wait_until_login_success(struct serverinfo *si);
 void mc_cleanup(struct serverinfo *si);
+char *mc_err_getstr(enum M_ERR err);
 
 #endif // __MINECRAFT_H

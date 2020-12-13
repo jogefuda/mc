@@ -1,7 +1,11 @@
 #include "compress.h"
+#include "minecraft.h"
+#include "log.h"
 #include <zlib.h>
 #include <string.h>
+#include <sys/types.h>
 
+/* zlib compress */
 int mc_deflat_pkt(struct buffer *in, struct buffer *out) {
     int ret, flush;
     size_t have, offset, need;
@@ -11,8 +15,10 @@ int mc_deflat_pkt(struct buffer *in, struct buffer *out) {
     strm.zfree = Z_NULL;
     strm.opaque = Z_NULL;
 
-    if ((ret = deflateInit(&strm, Z_DEFAULT_COMPRESSION)) != Z_OK) {
+    ret = deflateInit(&strm, Z_DEFAULT_COMPRESSION);
+    if (ret != Z_OK) {
         deflateEnd(&strm);
+        log_fatal(mc_err_getstr(M_ERR_DEFLAT));
         return M_FAIL;
     }
 
@@ -27,7 +33,7 @@ int mc_deflat_pkt(struct buffer *in, struct buffer *out) {
             ret = deflate(&strm, flush);
             have = Z_CHUNK - strm.avail_out;
 
-            if (!inc_buffer_if_not_enough(out, (have + (strm.total_out - out->b_allocsize)) * 1.3)) {
+            if (M_FAIL == inc_buffer_if_not_enough(out, (have + (strm.total_out - out->b_allocsize)) * 1.3)) {
                 deflateEnd(&strm);
                 return M_FAIL;
             }
@@ -41,6 +47,7 @@ int mc_deflat_pkt(struct buffer *in, struct buffer *out) {
     return M_SUCCESS;
 }
 
+/* zlib decompress */
 int mc_inflat_pkt(struct buffer *in, struct buffer *out) {
     int ret, flush;
     size_t have, offset, need;
@@ -53,6 +60,7 @@ int mc_inflat_pkt(struct buffer *in, struct buffer *out) {
     ret = inflateInit(&strm);
     if (ret != Z_OK) {
         inflateEnd(&strm);
+        log_fatal(mc_err_getstr(M_ERR_INFLAT));
         return M_FAIL;
     }
 
@@ -67,7 +75,7 @@ int mc_inflat_pkt(struct buffer *in, struct buffer *out) {
             ret = inflate(&strm, flush);
             have = Z_CHUNK - strm.avail_out;
 
-            if (!inc_buffer_if_not_enough(out, (have + (strm.total_out - out->b_allocsize)) * 1.3)) {
+            if (M_FAIL == inc_buffer_if_not_enough(out, (have + (strm.total_out - out->b_allocsize)) * 1.3)) {
                 inflateEnd(&strm);
                 return M_FAIL;
             }
