@@ -1,4 +1,5 @@
 #include "utils.h"
+#include "minecraft.h"
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -39,6 +40,8 @@ int inc_buffer_if_not_enough(struct buffer *arr, size_t size) {
     if (arr->b_allocsize < (arr->b_size + size) && inc_buffer(arr, size)) {
         return 1;
     }
+
+    log_fatal(mc_err_getstr(M_ERR_MEMORY));
     return 0;
 }
 

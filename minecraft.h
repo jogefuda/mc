@@ -1,10 +1,27 @@
 #ifndef __MINECRAFT_H
 #define __MINECRAFT_H
 
-#include "net/pkt.h"
+#include "crypto.h"
 #include "version.h"
+#include "net/pkt.h"
 #include <sys/types.h>
-#include <openssl/evp.h>
+
+enum M_ERR {
+    M_ERR_MEMORY,      /* if fail to alloc memory */
+    M_ERR_SECRETKEY,   /* if fail to generate secret key */
+    M_ERR_PUBKEY,      /* if fail to parse public key secret key */
+    M_ERR_ENCRYPT,     /* if fail to encrypt data */
+    M_ERR_DECRYPT,     /* if fail to decrypt data */
+    M_ERR_DEFLAT,      /* if fail to compress packet */
+    M_ERR_INFLAT,      /* if fail to uncompress packet */
+    M_ERR_DATA,        /* if fail to read socket */
+    M_ERR_DIGEST,      /* if fail to generate digest */
+};
+
+typedef struct mc_message {
+    int type;
+
+} mc_message_t;
 
 enum M_REQ {
     M_REQ_HANDSHAKE,
@@ -67,5 +84,6 @@ void mc_init_cipher(struct serverinfo *si);
 void mc_eventloop(struct serverinfo *si);
 void mc_wait_until_login_success(struct serverinfo *si);
 void mc_cleanup(struct serverinfo *si);
+char *mc_err_getstr(enum M_ERR err);
 
 #endif // __MINECRAFT_H

@@ -1,6 +1,7 @@
 #ifndef __HASH_H
 #define __HASH_H
 
+#include <sys/types.h>
 #include <openssl/evp.h>
 
 EVP_MD_CTX *mc_hash_init(EVP_MD_CTX *ctx);

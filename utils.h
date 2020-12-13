@@ -2,7 +2,7 @@
 #define __UTILS_H
 
 #include <sys/types.h>
-#define M_OK 1
+
 #define M_FAIL 1
 #define M_SUCCESS 0
 

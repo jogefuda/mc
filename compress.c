@@ -1,4 +1,5 @@
 #include "compress.h"
+#include "minecraft.h"
 #include <zlib.h>
 #include <string.h>
 
@@ -11,8 +12,10 @@ int mc_deflat_pkt(struct buffer *in, struct buffer *out) {
     strm.zfree = Z_NULL;
     strm.opaque = Z_NULL;
 
-    if ((ret = deflateInit(&strm, Z_DEFAULT_COMPRESSION)) != Z_OK) {
+    ret = deflateInit(&strm, Z_DEFAULT_COMPRESSION);
+    if (ret != Z_OK) {
         deflateEnd(&strm);
+        log_fatal(mc_err_getstr(M_ERR_DEFLAT));
         return M_FAIL;
     }
 
@@ -53,6 +56,7 @@ int mc_inflat_pkt(struct buffer *in, struct buffer *out) {
     ret = inflateInit(&strm);
     if (ret != Z_OK) {
         inflateEnd(&strm);
+        log_fatal(mc_err_getstr(M_ERR_INFLAT));
         return M_FAIL;
     }
 
