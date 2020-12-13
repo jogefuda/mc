@@ -1,5 +1,6 @@
 #include "auth.h"
 #include "../hash.h"
+#include <openssl/sha.h>
 #include <curl/curl.h>
 
 static char *auth_url = "https://sessionserver.mojang.com/session/minecraft/join";

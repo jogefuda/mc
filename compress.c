@@ -1,5 +1,6 @@
 #include "compress.h"
 #include <zlib.h>
+#include <string.h>
 
 int mc_deflat_pkt(struct buffer *in, struct buffer *out) {
     int ret, flush;

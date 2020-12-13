@@ -3,6 +3,7 @@
 
 #include "../minecraft.h"
 #include "../crypto.h"
+#include "../utils.h"
 #include <sys/types.h>
 
 enum M_REQ;

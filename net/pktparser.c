@@ -1,7 +1,7 @@
 #include "pktparser.h"
 #include "serialize.h"
 #include "auth.h"
-#include "utils.h"
+#include "../utils.h"
 #include <stdio.h>
 
 
@@ -39,9 +39,6 @@ void parse_encryptreq(struct serverinfo *si, struct buffer *buf) {
     // TODO: queue
     send_packet(M_REQ_ENCRYPTRES, si, NULL, NULL);
 }
-
-
-
 
 // 0x0D
 void parse_set_difficult(struct serverinfo *si, struct buffer *buf) {
