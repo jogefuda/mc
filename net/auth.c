@@ -1,5 +1,6 @@
 #include "auth.h"
 #include "../hash.h"
+#include <string.h>
 #include <openssl/sha.h>
 #include <curl/curl.h>
 
@@ -15,14 +16,15 @@ static char *auth_fmt = " \
   } \
 ";
 
-static ssize_t get_serverid(struct serverinfo *si, char *buf, unsigned int *len) {
+static size_t get_serverid(struct serverinfo *si, char *buf) {
     EVP_MD_CTX *ctx = mc_hash_init(NULL);
+    unsigned int len;
 
     if (si->si_encinfo->e_id->b_size > 0)
-        mc_hash_update(ctx, si->si_encinfo->e_id, 20);
+        mc_hash_update(ctx, si->si_encinfo->e_id->b_data, 20);
     mc_hash_update(ctx, si->si_encinfo->e_secret->b_data, 16);
     mc_hash_update(ctx, si->si_encinfo->e_pubkey->b_data, 162);
-    mc_hash_final(ctx, buf, len);
+    mc_hash_final(ctx, buf, &len);
     mc_hash_clean(ctx);
     return len;
 }
@@ -37,7 +39,7 @@ ssize_t get_uuid(char *name) {
 
     curl_easy_setopt(curl, CURLOPT_URL, url);
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "Minecraft");
-    printf("%s\n", url);
+
     if (curl_easy_perform(curl) != CURLE_OK)
         goto err;
 
@@ -76,7 +78,7 @@ void mc_auth(serverinfo_t *si, userinfo_t *ui) {
     }
 
     char serverid[SHA_DIGEST_LENGTH * 2 + 2];
-    get_serverid(si, serverid, SHA_DIGEST_LENGTH * 2 + 2);
+    get_serverid(si, serverid);
 
     char *post_data = malloc(strlen(auth_fmt) + strlen(token) + strlen(uuid) + strlen(serverid));
     sprintf(post_data, auth_fmt, token, uuid, serverid);
@@ -89,7 +91,6 @@ void mc_auth(serverinfo_t *si, userinfo_t *ui) {
     if (curl_easy_perform(curl) != CURLE_OK)
         goto err;
 
-    // printf("%s\n", post_data);
     int status;
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &status);
 

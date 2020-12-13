@@ -1,8 +1,10 @@
 #include "compress.h"
 #include "minecraft.h"
+#include "log.h"
 #include <zlib.h>
 #include <string.h>
 
+/* zlib compress */
 int mc_deflat_pkt(struct buffer *in, struct buffer *out) {
     int ret, flush;
     size_t have, offset, need;
@@ -44,6 +46,7 @@ int mc_deflat_pkt(struct buffer *in, struct buffer *out) {
     return M_SUCCESS;
 }
 
+/* zlib decompress */
 int mc_inflat_pkt(struct buffer *in, struct buffer *out) {
     int ret, flush;
     size_t have, offset, need;

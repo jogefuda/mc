@@ -52,7 +52,10 @@ char *mc_err_getstr(enum M_ERR err) {
         case M_ERR_PUBKEY: return "Fail to parse public key"; break;
         case M_ERR_SECRETKEY: return "Fail to generate secret key"; break;
         case M_ERR_DIGEST: return "Fail to generate digest"; break;
+        case M_ERR_DATA: return "Fail to read data"; break;
+        default: return "No mapping"; break;
     }
+
 }
 
 struct serverinfo *mc_connect(const char *host, uint16_t port, uint32_t proto) {

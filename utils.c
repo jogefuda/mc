@@ -1,5 +1,6 @@
 #include "utils.h"
 #include "minecraft.h"
+#include "log.h"
 #include <stdlib.h>
 #include <stdio.h>
 

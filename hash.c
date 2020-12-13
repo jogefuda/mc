@@ -1,5 +1,6 @@
 #include "hash.h"
 #include "minecraft.h"
+#include "log.h"
 #include "utils.h"
 #include <openssl/sha.h>
 #include <gmp.h>
