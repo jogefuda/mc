@@ -2,27 +2,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-void dump(void *buf, int n) {
-    char *_buf = buf;
-    int a = n;
-    while (a-- > 0)
-        printf("%02x ", (*_buf++) & 0xff);
-
-    putc('\n', stdout);
-
-    a = n;
-    _buf = buf;
-    while (a-- > 0) {
-        char *b = _buf++;
-        if (*b >= 0x20 && *b <= 'z')
-            printf("%c", *b);
-        else
-            printf(" ");
-    }
-
-    putc('\n', stdout);
-}
-
 void *inc_bytearray(struct bytearray *arr, size_t size) {
     void *newptr = realloc(arr->b_data, arr->b_allocsize + size);
     if (newptr == NULL)

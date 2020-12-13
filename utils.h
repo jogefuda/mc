@@ -30,10 +30,4 @@ void del_buffer(struct buffer *ptr);
 
 int get_varint_len(int32_t val);
 
-void dump(void *buf, int n);
-/*
-#define vitoh(__v, __n) ((int)vitohl(__v, __n))
-#define vitohs(__v, __n) ((short)vitohl(__v, __n))
-
-*/
 #endif // __UTILS_H

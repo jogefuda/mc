@@ -97,11 +97,8 @@ ssize_t read_packet(struct serverinfo *si, struct userinfo *ui, void *userdata) 
         // M_PACKET_PING
     }
 
-    // TODO: clear this out
+    // TODO:
     // consume broken packet (if any)
-    // buf->b_next = buf->b_data;
-    // dump(buf->b_data, buf->b_size);
-    // printf("pkgsize: %d, 0x%x\n", pktlen, pkttype);
 
     del_buffer(buf);
     return 0;
