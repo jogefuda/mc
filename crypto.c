@@ -122,7 +122,7 @@ int aes_cipher_update_u8(EVP_CIPHER_CTX *ctx, uint8_t val, uint8_t *out) {
 /* Decrypt data from in to out using cipher context */
 int aes_cipher_update(EVP_CIPHER_CTX *ctx, struct buffer *in, struct buffer *out) {
     int outl;
-    if (!EVP_CipherUpdate(ctx, out->b_data, &outl, in->b_data, in->b_size)) {
+    if (!EVP_CipherUpdate(ctx, out->b_next, &outl, in->b_next, in->b_size)) {
         log_fatal(mc_err_getstr(M_ERR_ENCRYPT), ERR_error_string(ERR_get_error(), 0));
         out->b_size = 0;
         return -1;

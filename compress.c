@@ -24,7 +24,7 @@ int mc_deflat_pkt(struct buffer *in, struct buffer *out) {
 
     do {
         strm.avail_in = in->b_size - strm.total_in;
-        strm.next_in = in->b_data + strm.total_in;
+        strm.next_in = in->b_next + strm.total_in;
         flush = (in->b_size > strm.total_in) ? Z_NO_FLUSH : Z_FINISH;
         do {
             offset = strm.total_out;
@@ -38,7 +38,7 @@ int mc_deflat_pkt(struct buffer *in, struct buffer *out) {
                 return M_FAIL;
             }
 
-            memcpy(out->b_data + offset, tmp_out, have);
+            memcpy(out->b_next + offset, tmp_out, have);
         } while (strm.avail_out == 0);
     } while (flush != Z_FINISH);
     out->b_size = strm.total_out;
@@ -66,7 +66,7 @@ int mc_inflat_pkt(struct buffer *in, struct buffer *out) {
 
     do {
         strm.avail_in = in->b_size - strm.total_in;
-        strm.next_in = in->b_data + strm.total_in;
+        strm.next_in = in->b_next + strm.total_in;
         flush = (in->b_size > strm.total_in) ? Z_NO_FLUSH : Z_FINISH;
         do {
             offset = strm.total_out;
@@ -80,7 +80,7 @@ int mc_inflat_pkt(struct buffer *in, struct buffer *out) {
                 return M_FAIL;
             }
 
-            memcpy(out->b_data + offset, tmp_out, have);
+            memcpy(out->b_next + offset, tmp_out, have);
         } while (strm.avail_out == 0);
     } while (flush != Z_FINISH);
     out->b_size = strm.total_out;

@@ -48,6 +48,7 @@ ssize_t read_packet(struct serverinfo *si, struct userinfo *ui, void *userdata) 
     if (compress_enabled && uncompressed_pktlen > 0) {
         // TODO: error handle
         zbuf = new_buffer(uncompressed_pktlen);
+        buf->b_next = buf->b_data;
         ret = mc_inflat_pkt(buf, zbuf);
         del_buffer(buf);
         buf = zbuf;
@@ -105,9 +106,19 @@ ssize_t read_packet(struct serverinfo *si, struct userinfo *ui, void *userdata) 
 }
 
 ssize_t send_packet(enum M_REQ type, struct serverinfo *si, struct userinfo *ui, void *data) {
-    struct buffer *buf, *zbuf, *header;
-    header = new_buffer(10);
+    int ret;
+    char *pdata;
+    struct buffer *buf, *zbuf;
+
     buf = new_buffer(128);
+
+    if (buf == NULL)
+        return -1;
+
+    /* reserve for header size */
+    buf->b_next = buf->b_data + 10;
+    buf->b_allocsize -= 10;
+
     int compress_enabled = si->si_conninfo.thresh > 0;
     int encrypt_enabled = si->si_encinfo->e_encctx != 0;
     int fd = si->si_conninfo.sockfd;
@@ -142,34 +153,53 @@ ssize_t send_packet(enum M_REQ type, struct serverinfo *si, struct userinfo *ui,
         if (buf->b_size > si->si_conninfo.thresh) {
             zbuf = new_buffer(buf->b_allocsize * 0.8);
             if (zbuf == NULL) {
-                // TODO: error handle
-
-                // return 0;
+                del_buffer(buf);
+                return -1;
             }
+
+            /* reseve 10 bytes for header */
+            buf->b_next = buf->b_data + 10;
+            zbuf->b_next += 10;
             mc_deflat_pkt(buf, zbuf);
             del_buffer(buf);
             buf = zbuf;
-            serialize_varint(header, buf->b_size + get_varint_len(pktsize));
-            serialize_varint(header, pktsize);
+
+            buf->b_next = pdata = buf->b_data + 10
+                - get_varint_len(buf->b_size + get_varint_len(pktsize))
+                - get_varint_len(pktsize);
+            serialize_varint(buf, buf->b_size + get_varint_len(pktsize));
+            serialize_varint(buf, pktsize);
         } else {
-            serialize_varint(header, pktsize + get_varint_len(0));
-            serialize_varint(header, 0);
+            buf->b_next = pdata = buf->b_data + 10
+                - get_varint_len(pktsize + get_varint_len(0))
+                - get_varint_len(0);
+            serialize_varint(buf, pktsize + get_varint_len(0));
+            serialize_varint(buf, 0);
         }
     } else {
-        serialize_varint(header, pktsize);
+        buf->b_next = pdata = buf->b_data + 10
+            - get_varint_len(pktsize);
+        serialize_varint(buf, pktsize);
     }
 
     if (encrypt_enabled) {
-        aes_cipher_update(si->si_encinfo->e_encctx, header, header);
+        buf->b_next = pdata;
         aes_cipher_update(si->si_encinfo->e_encctx, buf, buf);
     }
 
-    write(fd, header->b_data, header->b_size);
-    write(fd, buf->b_data, buf->b_size);
+    ssize_t wbytes, total_wbytes;
+    wbytes = 0;
+    total_wbytes = 0;
+    do {
+        wbytes = write(fd, pdata, buf->b_size);
+        if (wbytes == -1)
+            return -1;
+        buf->b_size -= wbytes;
+        total_wbytes += wbytes;
+    } while (buf->b_size);
 
-    del_buffer(header);
     del_buffer(buf);
-    return 1;
+    return total_wbytes;
 }
 
 size_t build_handshake(struct buffer *buf, void *data) {

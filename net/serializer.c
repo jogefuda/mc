@@ -49,7 +49,6 @@ size_t deserialize_str(struct buffer *buf, struct buffer *out) {
     buf->b_next += len;
     out->b_next += len + 1;
     out->b_size += len;
-    *(out->b_data + len + 1) = '\0';
     return len;
 }
 

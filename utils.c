@@ -11,9 +11,9 @@ void *inc_buffer(struct buffer *arr, size_t size) {
     if (newptr == NULL)
         return NULL;
 
+    arr->b_next = newptr + (arr->b_next - arr->b_data);
     arr->b_data = newptr;
     arr->b_allocsize = newsize;
-    arr->b_next = arr->b_data + arr->b_size;
     return newptr;
 }
 
