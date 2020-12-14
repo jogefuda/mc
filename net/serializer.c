@@ -1,4 +1,7 @@
 #include "serialize.h"
+#include "../crypto.h"
+#include <unistd.h>
+#include <string.h>
 
 // deserialize
 ssize_t fread_varint(int fd, int32_t *out, EVP_CIPHER_CTX *ctx) {
@@ -58,14 +61,14 @@ size_t deserialize_char(struct buffer *buf, int8_t *out) {
 }
 
 size_t deserialize_short(struct buffer *buf, int16_t *out) {
-    char *_out = out;
+    char *_out = (char *)out;
     _out[1] = *buf->b_next++;
     _out[0] = *buf->b_next++;
     return 2;
 }
 
 size_t deserialize_int(struct buffer *buf, int32_t *out) {
-    char *_out = out;
+    char *_out = (char *)out;
     _out[3] = *buf->b_next++;
     _out[2] = *buf->b_next++;
     _out[1] = *buf->b_next++;
@@ -74,7 +77,7 @@ size_t deserialize_int(struct buffer *buf, int32_t *out) {
 }
 
 size_t deserialize_long(struct buffer *buf, int64_t *out) {
-    char *_out = out;
+    char *_out = (char *)out;
     _out[7] = *buf->b_next++;
     _out[6] = *buf->b_next++;
     _out[5] = *buf->b_next++;

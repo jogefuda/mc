@@ -1,21 +1,21 @@
 #include "pkt.h"
 #include "pktparser.h"
+#include "auth.h" // may delete after impl queue
+#include "serialize.h"
 #include "../crypto.h"
 #include "../compress.h"
 #include "../utils.h"
-#include "serialize.h"
+#include "../log.h"
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
 
-// parse packet
-
-//
+/* Read/Decrypt/Decompress the packet and send to parser */
 ssize_t read_packet(struct serverinfo *si, struct userinfo *ui, void *userdata) {
     int fd = si->si_conninfo.sockfd;
     int compress_enabled = si->si_conninfo.thresh > 0;
-    int encrypt_enabled = si->si_encinfo->e_decctx;
+    int encrypt_enabled = si->si_encinfo->e_decctx != NULL;
     EVP_CIPHER_CTX *cipher = si->si_encinfo->e_decctx;
     int state = si->si_conninfo.state;
     int ret;
@@ -25,36 +25,49 @@ ssize_t read_packet(struct serverinfo *si, struct userinfo *ui, void *userdata) 
 
     fread_varint(fd, &pktlen, cipher);
     buf = new_buffer(pktlen);
-    if (buf == NULL) {
-        // TODO: error handle
-    }
-    // TODO: change initial buffer size
+    if (buf == NULL)
+        return -1;
+
     nbytes = 0;
     if (compress_enabled)
         nbytes += fread_varint(fd, &uncompressed_pktlen, cipher);
 
     remain_pktbytes = (compress_enabled) ? pktlen - nbytes : pktlen;
 
+    // TODO: use loop for read
     if ((ret = read(fd, buf->b_data, remain_pktbytes)) < 1) {
-        // TODO: error handle
-        printf("ERROR=================\n");
+        log_fatal(mc_err_getstr(M_ERR_DATA));
         return -1;
     }
+
     buf->b_size = ret;
 
+    /* Decrypt packet */
     if (encrypt_enabled)
         aes_cipher_update(cipher, buf, buf);
 
+    /* Decompress packet */
     if (compress_enabled && uncompressed_pktlen > 0) {
-        // TODO: error handle
         zbuf = new_buffer(uncompressed_pktlen);
+        if (zbuf == NULL) {
+            del_buffer(buf);
+            return -1;
+        }
+
         buf->b_next = buf->b_data;
         ret = mc_inflat_pkt(buf, zbuf);
+        if (ret != M_SUCCESS) {
+            del_buffer(buf);
+            del_buffer(zbuf);
+            return -1;
+        }
+
         del_buffer(buf);
         buf = zbuf;
         zbuf = NULL;
     }
 
+    /* Get packet type */
     deserialize_varint(buf, &pkttype);
     // TODO: 1. impl state 1 and 2
     //       2. is proccessed variable
@@ -78,7 +91,6 @@ ssize_t read_packet(struct serverinfo *si, struct userinfo *ui, void *userdata) 
             case M_PACKET_UPDATE_VIEW_POSITION:
                 parse_update_view_position(si, buf);
                 break;
-
         }
     } else if (state == M_STATE_LOGIN) {
         switch (pkttype) {
@@ -99,12 +111,14 @@ ssize_t read_packet(struct serverinfo *si, struct userinfo *ui, void *userdata) 
     }
 
     // TODO:
+    // check if packet is borken
     // consume broken packet (if any)
 
     del_buffer(buf);
     return 0;
 }
 
+/* Send/Encrypt/Compress the packet */
 ssize_t send_packet(enum M_REQ type, struct serverinfo *si, struct userinfo *ui, void *data) {
     int ret;
     char *pdata;

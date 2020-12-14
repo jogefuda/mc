@@ -9,8 +9,8 @@ ssize_t fread_varint(int fd, int32_t *out, EVP_CIPHER_CTX *ctx);
 
 #define deserialize_byte(buf, out) deserialize_char(buf, out)
 #define deserialize_bytearray(buf, out, len) deserialize_str(buf, out, len)
-#define deserialize_float(buf, out) deserialize_int(buf, out)
-#define deserialize_double(buf, out) deserialize_long(buf, out)
+#define deserialize_float(buf, out) deserialize_int(buf, (int32_t *)out)
+#define deserialize_double(buf, out) deserialize_long(buf, (int64_t *)out)
 size_t deserialize_varint(struct buffer *buf, int32_t *out);
 size_t deserialize_str(struct buffer *buf, struct buffer *out);
 size_t deserialize_char(struct buffer *buf, int8_t *out);

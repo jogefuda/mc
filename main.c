@@ -1,12 +1,11 @@
 #include "minecraft.h"
-#include "utils.h"
 #include <stdio.h>
-#include <stdlib.h>
+#include <unistd.h>
 
 int main(int argc, char *argv[]) {
     struct serverinfo *si = mc_connect("127.0.0.1", 25565, MC_1_6_4);
     struct userinfo ui = {
-        .ui_name = "-東風一號."
+        .ui_name = "nenezuko"
     };
 
     mc_eventloop(si);

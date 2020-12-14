@@ -30,9 +30,9 @@ int mc_hash_update(EVP_MD_CTX *ctx, const char *data, size_t len) {
 }
 
 /* Finalize the Digest and get result to out */
-int mc_hash_final(EVP_MD_CTX *ctx, char *out, unsigned int *len) {
+int mc_hash_final(EVP_MD_CTX *ctx, char *out) {
     unsigned char tmp[SHA_DIGEST_LENGTH];
-    unsigned char str_tmp[SHA_DIGEST_LENGTH * 2 + 1];
+    unsigned char str_tmp[M_DIGEST_LENGTH];
     unsigned int tmp_len;
     if (!EVP_DigestFinal(ctx, tmp, &tmp_len)) {
         log_fatal(mc_err_getstr(M_ERR_DIGEST));

@@ -8,6 +8,11 @@
 
 enum M_REQ;
 
+// TODO: figure out why need this even i have include minecraft.h
+//       may be typedef and struct work in different way
+struct serverinfo;
+struct userinfo;
+
 enum M_PACKET_CLIENTBOUND {
     /* Status (Handshake) */
     M_PACKET_SLPRESP = 0x00,

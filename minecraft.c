@@ -20,7 +20,7 @@ static void _mc_eventloop(struct serverinfo *si) {
     }
 
     struct epoll_event event = {
-        .data = sock_fd,
+        .data.fd = sock_fd,
         .events = EPOLLIN | EPOLLHUP | EPOLLERR
     };
 
@@ -110,7 +110,7 @@ struct serverinfo *mc_connect(const char *host, uint16_t port, uint32_t proto) {
 void mc_eventloop(struct serverinfo *si) {
     // TODO: wait until epoll is in ready state
     pthread_t t;
-    pthread_create(&t, NULL, _mc_eventloop, si);
+    pthread_create(&t, NULL, (void *)_mc_eventloop, si);
 }
 
 void mc_getinfo(struct serverinfo *si, enum M_REQ info) {
@@ -144,7 +144,7 @@ void mc_wait_until_login_success(struct serverinfo *si) {
 }
 
 void mc_chat(struct serverinfo *si, const char *msg) {
-    send_packet(M_REQ_CHAT, si, NULL, msg);
+    send_packet(M_REQ_CHAT, si, NULL, (void *)msg);
 }
 
 void mc_set_difficult(struct serverinfo *si, int32_t level) {

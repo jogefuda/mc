@@ -1,3 +1,4 @@
+# make a batter Makefile
 LIBS = -lm -lpthread -lz -lgnutls -lssl -lcrypto -lcurl -lgmp
 NET_OBJ = $(patsubst %.c,%.o,$(wildcard net/*.c))
 OBJ = $(patsubst %.c,%.o,$(wildcard *.c))
@@ -12,10 +13,10 @@ run: a.out
 	-./a.out
 
 a.out: main.o $(OBJ)
-	$(CC) -g $< $(OBJ) $(LIBS)
+	@$(CC) -g $< $(OBJ) $(LIBS)
 
 %.o: %.c %.h
-	$(CC) -g -c $< -o $@ $(LIBS)
+	@$(CC) -g -c $< -o $@ $(LIBS)
 
 clean:
-	@$(RM) ./*.o ./*.txt a.out
+	@$(RM) ./*.o ./net/*.o ./*.txt  a.out

@@ -5,6 +5,7 @@
 
 #define M_FAIL 1
 #define M_SUCCESS 0
+#define M_DIGEST_LENGTH 42
 
 typedef struct buffer {
     size_t b_size;

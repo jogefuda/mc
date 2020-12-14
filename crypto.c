@@ -99,10 +99,18 @@ void openssl_load_err_str() {
 */
 EVP_CIPHER_CTX *aes_cipher_init(const char *key, const char *iv, int enc) {
     int ret;
+
+    /* Create cipher context */
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+    if (ctx == NULL) {
+        log_fatal(mc_err_getstr(M_ERR_CIPHER), ERR_error_string(ERR_get_error(), 0));
+        return NULL;
+    }
+
+    /* Init cipher aes/cfb8 */
     ret = EVP_CipherInit(ctx, EVP_aes_128_cfb8(), key, iv, enc);
 
-    if (ret == NULL) {
+    if (ret == 0) {
         log_fatal(mc_err_getstr(M_ERR_CIPHER), ERR_error_string(ERR_get_error(), 0));
         return NULL;
     }

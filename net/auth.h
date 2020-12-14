@@ -5,4 +5,5 @@
 #include <sys/types.h>
 
 ssize_t get_uuid(char *name);
+int mc_auth(serverinfo_t *si, userinfo_t *ui);
 #endif // __AUTH_H

@@ -1,6 +1,6 @@
 #include "auth.h"
 #include "../hash.h"
-#include <openssl/sha.h>
+#include <string.h>
 #include <curl/curl.h>
 
 static char *auth_url = "https://sessionserver.mojang.com/session/minecraft/join";
@@ -15,16 +15,17 @@ static char *auth_fmt = " \
   } \
 ";
 
-static ssize_t get_serverid(struct serverinfo *si, char *buf, unsigned int *len) {
+/* Calculate server id for authentication on mojang */
+static int get_serverid(struct serverinfo *si, char *buf) {
     EVP_MD_CTX *ctx = mc_hash_init(NULL);
 
     if (si->si_encinfo->e_id->b_size > 0)
-        mc_hash_update(ctx, si->si_encinfo->e_id, 20);
+        mc_hash_update(ctx, si->si_encinfo->e_id->b_data, 20);
     mc_hash_update(ctx, si->si_encinfo->e_secret->b_data, 16);
     mc_hash_update(ctx, si->si_encinfo->e_pubkey->b_data, 162);
-    mc_hash_final(ctx, buf, len);
+    mc_hash_final(ctx, buf);
     mc_hash_clean(ctx);
-    return len;
+    return M_SUCCESS;
 }
 
 ssize_t get_uuid(char *name) {
@@ -58,7 +59,7 @@ ssize_t get_uuid(char *name) {
     return 0;
 }
 
-void mc_auth(serverinfo_t *si, userinfo_t *ui) {
+int mc_auth(serverinfo_t *si, userinfo_t *ui) {
     CURL * curl = curl_easy_init();
     if (!curl)
         goto err;
@@ -75,8 +76,8 @@ void mc_auth(serverinfo_t *si, userinfo_t *ui) {
         return 0;
     }
 
-    char serverid[SHA_DIGEST_LENGTH * 2 + 2];
-    get_serverid(si, serverid, SHA_DIGEST_LENGTH * 2 + 2);
+    char serverid[M_DIGEST_LENGTH];
+    get_serverid(si, serverid);
 
     char *post_data = malloc(strlen(auth_fmt) + strlen(token) + strlen(uuid) + strlen(serverid));
     sprintf(post_data, auth_fmt, token, uuid, serverid);
